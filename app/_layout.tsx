@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
@@ -12,7 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { I18nManager } from 'react-native';
 import { UserDataProvider } from '@/contexts/UserDataContext';
 import SyncIndicator from '@/components/SyncIndicator';
-import { View, Text } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -31,6 +31,31 @@ export default function RootLayout() {
   }, {
     display: 'swap',
   });
+
+  // --- PWA Install Prompt ---
+  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handler = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      setShowInstallPrompt(true);
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+    return () => window.removeEventListener('beforeinstallprompt', handler);
+  }, []);
+
+  const handleInstall = () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      deferredPrompt.userChoice.then(() => {
+        setShowInstallPrompt(false);
+      });
+    }
+  };
+  // --- End PWA Install Prompt ---
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
@@ -62,6 +87,21 @@ export default function RootLayout() {
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style="light" />
+      {/* PWA Install Prompt */}
+      {showInstallPrompt && (
+        <View style={{ position: 'absolute', bottom: 30, left: 20, right: 20, backgroundColor: '#222', borderRadius: 12, padding: 16, zIndex: 9999, alignItems: 'center' }}>
+          <Text style={{ color: '#fff', fontSize: 16, marginBottom: 8 }}>يمكنك تثبيت التطبيق على الشاشة الرئيسية!</Text>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <TouchableOpacity onPress={handleInstall} style={{ backgroundColor: '#4CAF50', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8, marginRight: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 15 }}>تثبيت</Text>
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => setShowInstallPrompt(false)} style={{ backgroundColor: '#888', paddingHorizontal: 18, paddingVertical: 8, borderRadius: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 15 }}>إلغاء</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+      {/* End PWA Install Prompt */}
     </UserDataProvider>
   );
 }

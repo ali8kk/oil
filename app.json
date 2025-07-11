@@ -21,7 +21,8 @@
       "favicon": "./assets/images/favicon.png",
       "manifest": "./manifest.json",
       "title": "Oil Salary Manager",
-      "description": "تطبيق إدارة الرواتب والحوافز"
+      "description": "تطبيق إدارة الرواتب والحوافز",
+      "icon": "./assets/images/icon.png"
     },
     "plugins": [
       "expo-router",
