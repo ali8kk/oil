@@ -12,8 +12,9 @@
   },
   "scripts": {
     "dev": "EXPO_NO_TELEMETRY=1 expo start",
+    "analyze:web": "npx source-map-explorer dist/**/*.js",
     "build:web": "expo export --platform web",
-    "build:web:prod": "expo export --platform web --clear",
+    "build:web:prod": "expo export --platform web --clear && npx terser dist/**/*.js --compress --mangle --output dist/",
     "start:web": "expo start --web",
     "lint": "expo lint"
   },

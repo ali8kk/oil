@@ -28,6 +28,8 @@ export default function RootLayout() {
     'Cairo-Regular': Cairo_400Regular,
     'Cairo-SemiBold': Cairo_600SemiBold,
     'Cairo-Bold': Cairo_700Bold,
+  }, {
+    display: 'swap',
   });
 
   useEffect(() => {
