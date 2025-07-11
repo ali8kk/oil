@@ -273,28 +273,7 @@ export default function TabLayout() {
   const insets = useSafeAreaInsets();
   return (
     <>
-      <LinearGradient
-        colors={["#6B46C1", "#8B5CF6"]}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 0 }}
-        style={{
-          height: 56,
-          justifyContent: 'center',
-          alignItems: 'center',
-        }}
-      >
-        <Text style={{
-          color: '#fff',
-          fontSize: 22,
-          fontFamily: 'Cairo-Bold',
-          textAlign: 'center',
-          marginTop: 0,
-          marginBottom: 0,
-          lineHeight: 28,
-        }}>
-          {/* العنوان يتغير حسب التبويب */}
-        </Text>
-      </LinearGradient>
+      {/* تم حذف الشريط العلوي البنفسجي */}
       <Tabs
         screenOptions={{
           headerShown: false,
