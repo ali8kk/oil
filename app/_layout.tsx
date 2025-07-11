@@ -12,6 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { I18nManager } from 'react-native';
 import { UserDataProvider } from '@/contexts/UserDataContext';
 import SyncIndicator from '@/components/SyncIndicator';
+import { View, Text } from 'react-native';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -31,11 +32,22 @@ export default function RootLayout() {
 
   useEffect(() => {
     if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
+      SplashScreen.hideAsync().catch(() => {
+        // Ignore splash screen errors
+      });
     }
   }, [fontsLoaded, fontError]);
 
-  if (!fontsLoaded && !fontError) {
+  // Show error if fonts failed to load
+  if (fontError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <Text>Error loading fonts</Text>
+      </View>
+    );
+  }
+
+  if (!fontsLoaded) {
     return null;
   }
 

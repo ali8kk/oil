@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { View, Text } from 'react-native';
 import { IncentiveData } from '@/components/IncentiveModal';
 import { SalaryData } from '@/components/SalaryModal';
 import { ProfitsData } from '@/components/ProfitsModal';
-import { databaseService, User, IncentiveSlip, SalarySlip, ProfitsSlip } from '@/lib/supabase';
+import { databaseService, User, IncentiveSlip, SalarySlip, ProfitsSlip, isSupabaseConfigured } from '@/lib/supabase';
 import { router } from 'expo-router';
 
 export interface UserData {
@@ -119,10 +120,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [hasError, setHasError] = useState(false);
 
   // تحميل البيانات من التخزين المحلي عند بدء التطبيق
   useEffect(() => {
-    loadAllData();
+    loadAllData().catch((error) => {
+      console.error('Error in loadAllData:', error);
+      setHasError(true);
+      setIsLoading(false);
+    });
   }, []);
 
   // تحميل البيانات من قاعدة البيانات عند الاتصال
@@ -135,15 +141,19 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   const loadAllData = async () => {
     try {
-      await Promise.all([
-        loadUserData(),
-        loadCurrentUserId(),
-        loadIncentiveSlips(),
-        loadSalarySlips(),
-        loadProfitsSlips()
-      ]);
+      console.log('Starting to load all data...');
+      
+      // تحميل البيانات بشكل متسلسل لتجنب الأخطاء
+      await loadUserData();
+      await loadCurrentUserId();
+      await loadIncentiveSlips();
+      await loadSalarySlips();
+      await loadProfitsSlips();
+      
+      console.log('All data loaded successfully');
     } catch (error) {
-      console.log('Error loading data:', error);
+      console.error('Error loading data:', error);
+      // لا نضع setHasError(true) هنا لأننا نريد التطبيق أن يعمل حتى مع الأخطاء
     } finally {
       setIsLoading(false);
     }
@@ -156,9 +166,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         const parsedData = JSON.parse(storedData);
         // التأكد من وجود الحقول الجديدة
         setUserData({ ...defaultUserData, ...parsedData });
+        console.log('User data loaded successfully');
+      } else {
+        console.log('No stored user data found, using defaults');
       }
     } catch (error) {
-      console.log('Error loading user data:', error);
+      console.error('Error loading user data:', error);
+      // استخدم البيانات الافتراضية في حالة الخطأ
+      setUserData(defaultUserData);
     }
   };
 
@@ -168,9 +183,12 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       if (userId) {
         setCurrentUserId(userId);
         setIsConnectedToDatabase(true);
+        console.log('User ID loaded successfully');
+      } else {
+        console.log('No stored user ID found');
       }
     } catch (error) {
-      console.log('Error loading user ID:', error);
+      console.error('Error loading user ID:', error);
     }
   };
 
@@ -179,9 +197,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const storedSlips = await AsyncStorage.getItem(INCENTIVE_SLIPS_KEY);
       if (storedSlips) {
         setIncentiveSlips(JSON.parse(storedSlips));
+        console.log('Incentive slips loaded successfully');
+      } else {
+        console.log('No stored incentive slips found');
       }
     } catch (error) {
-      console.log('Error loading incentive slips:', error);
+      console.error('Error loading incentive slips:', error);
+      setIncentiveSlips([]);
     }
   };
 
@@ -190,9 +212,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const storedSlips = await AsyncStorage.getItem(SALARY_SLIPS_KEY);
       if (storedSlips) {
         setSalarySlips(JSON.parse(storedSlips));
+        console.log('Salary slips loaded successfully');
+      } else {
+        console.log('No stored salary slips found');
       }
     } catch (error) {
-      console.log('Error loading salary slips:', error);
+      console.error('Error loading salary slips:', error);
+      setSalarySlips([]);
     }
   };
 
@@ -207,15 +233,24 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
           rating: slip.rating || 'متوسط'
         }));
         setProfitsSlips(updatedSlips);
+        console.log('Profits slips loaded successfully');
+      } else {
+        console.log('No stored profits slips found');
       }
     } catch (error) {
-      console.log('Error loading profits slips:', error);
+      console.error('Error loading profits slips:', error);
+      setProfitsSlips([]);
     }
   };
 
   const loadFromDatabase = async () => {
     try {
       console.log('Loading data from database...');
+      
+      if (!isSupabaseConfigured()) {
+        console.log('Supabase not configured, skipping database load');
+        return;
+      }
       
       if (!currentUserId) {
         console.log('No current user ID, skipping database load');
@@ -373,7 +408,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     try {
       setIsSyncing(true);
       let newUserData = { ...userData, ...data };
-      if (isConnectedToDatabase && currentUserId) {
+      if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
         // حدث في قاعدة البيانات
         const dbData: any = {};
         if (data.name !== undefined) dbData.name = data.name;
@@ -426,7 +461,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(updatedSlips));
       
       // حفظ في قاعدة البيانات إذا كان متصل
-      if (currentUserId && isConnectedToDatabase) {
+      if (currentUserId && isConnectedToDatabase && isSupabaseConfigured()) {
         try {
           const savedSlip = await databaseService.saveIncentiveSlip({
             user_id: Number(currentUserId),
@@ -555,7 +590,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       setIncentiveSlips(updatedSlips);
       await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(updatedSlips));
       
-      if (currentUserId && isConnectedToDatabase && updatedSlips[index]?.id) {
+      if (currentUserId && isConnectedToDatabase && isSupabaseConfigured() && updatedSlips[index]?.id) {
         try {
           // محاولة التحديث مباشرة
           await databaseService.updateIncentiveSlip(updatedSlips[index].id, {
@@ -689,7 +724,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       setIncentiveSlips(updatedSlips);
       await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(updatedSlips));
       
-      if (currentUserId && isConnectedToDatabase && slipToDelete?.id) {
+      if (currentUserId && isConnectedToDatabase && isSupabaseConfigured() && slipToDelete?.id) {
         try {
           await databaseService.deleteIncentiveSlip(slipToDelete.id);
         } catch (dbError) {
@@ -787,7 +822,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(updatedSlips));
       
       // حفظ في قاعدة البيانات إذا كان متصل
-      if (currentUserId && isConnectedToDatabase) {
+      if (currentUserId && isConnectedToDatabase && isSupabaseConfigured()) {
         try {
           const savedSlip = await databaseService.saveSalarySlip({
             user_id: Number(currentUserId),
@@ -856,7 +891,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         slipData: slip
       });
       
-      if (currentUserId && isConnectedToDatabase && existingSlip?.id) {
+      if (currentUserId && isConnectedToDatabase && isSupabaseConfigured() && existingSlip?.id) {
         console.log('updateSalarySlip: updating in database', {
           slipId: existingSlip.id,
           userId: currentUserId,
@@ -923,7 +958,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(updatedSlips));
       
       // حذف من قاعدة البيانات إذا كان متصل
-      if (currentUserId && isConnectedToDatabase && slipToDelete?.id) {
+      if (currentUserId && isConnectedToDatabase && isSupabaseConfigured() && slipToDelete?.id) {
         try {
           await databaseService.deleteSalarySlip(slipToDelete.id);
         } catch (dbError) {
@@ -958,7 +993,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(updatedSlips));
       
       // حفظ في قاعدة البيانات إذا كان متصل
-      if (currentUserId && isConnectedToDatabase) {
+      if (currentUserId && isConnectedToDatabase && isSupabaseConfigured()) {
         try {
           const savedSlip = await databaseService.saveProfitsSlip({
             user_id: Number(currentUserId),
@@ -1532,6 +1567,11 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       setIsSyncing(true);
       console.log('Linking to database with:', { computerId, password });
       
+      // التحقق من وجود Supabase
+      if (!isSupabaseConfigured()) {
+        return { success: false, message: 'قاعدة البيانات غير متاحة. يرجى التحقق من إعدادات الاتصال.' };
+      }
+      
       // التحقق من وجود المستخدم
       const existingUser = await databaseService.checkUserExists(computerId);
       
@@ -1626,6 +1666,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     try {
       setIsSyncing(true);
       
+      if (!isSupabaseConfigured()) {
+        return { success: false, message: 'قاعدة البيانات غير متاحة. يرجى التحقق من إعدادات الاتصال.' };
+      }
+      
       if (!currentUserId || !isConnectedToDatabase) {
         return { success: false, message: 'التطبيق غير مرتبط بقاعدة البيانات' };
       }
@@ -1646,6 +1690,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const saveToDatabase = async () => {
     try {
       setIsSyncing(true);
+      
+      if (!isSupabaseConfigured()) {
+        return { success: false, message: 'قاعدة البيانات غير متاحة. يرجى التحقق من إعدادات الاتصال.' };
+      }
       
       if (!currentUserId || !isConnectedToDatabase) {
         return { success: false, message: 'التطبيق غير مرتبط بقاعدة البيانات' };
@@ -2068,6 +2116,20 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     
     return false; // فشل في معالجة الخطأ
   };
+
+  // إذا كان هناك خطأ، اعرض رسالة خطأ بسيطة
+  if (hasError) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', padding: 20 }}>
+        <Text style={{ fontSize: 16, textAlign: 'center', marginBottom: 10 }}>
+          حدث خطأ في تحميل التطبيق
+        </Text>
+        <Text style={{ fontSize: 14, textAlign: 'center', color: '#666' }}>
+          يرجى إعادة تشغيل التطبيق
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <UserDataContext.Provider value={{
