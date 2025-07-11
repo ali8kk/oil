@@ -7,7 +7,7 @@
   "theme_color": "#1a237e",
   "icons": [
     {
-      "src": "assets/oil.png",
+      "src": "assets/oildrop.png",
       "sizes": "512x512",
       "type": "image/png"
     }
