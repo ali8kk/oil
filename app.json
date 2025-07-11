@@ -19,6 +19,7 @@
       "bundler": "metro",
       "output": "single",
       "favicon": "./assets/images/favicon.png",
+      "manifest": "./manifest.json",
       "title": "Oil Salary Manager",
       "description": "تطبيق إدارة الرواتب والحوافز"
     },
