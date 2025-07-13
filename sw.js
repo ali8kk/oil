@@ -1,8 +1,9 @@
-const CACHE_NAME = 'oil-salary-v1';
+const CACHE_NAME = 'oil-salary-v2';
 const urlsToCache = [
   '/',
+  '/manifest.json',
   '/assets/images/oil.png',
-  '/manifest.json'
+  // Add more static assets if needed
 ];
 
 self.addEventListener('install', (event) => {
@@ -13,14 +14,25 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
+  if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request)
-      .then((response) => {
-        if (response) {
-          return response;
-        }
-        return fetch(event.request);
-      })
+    caches.match(event.request).then((response) => {
+      const fetchPromise = fetch(event.request)
+        .then((networkResponse) => {
+          if (
+            networkResponse &&
+            networkResponse.status === 200 &&
+            networkResponse.type === 'basic'
+          ) {
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(event.request, networkResponse.clone());
+            });
+          }
+          return networkResponse;
+        })
+        .catch(() => response); // fallback to cache if offline
+      return response || fetchPromise;
+    })
   );
 });
 
