@@ -56,7 +56,22 @@ function EditField({ icon, label, value, onChangeText, placeholder, keyboardType
 }
 
 export default function AccountInfoScreen() {
-  const { userData, updateUserData, triggerSaveToast, isSyncing } = useUserData();
+  const { userData, updateUserData, triggerSaveToast, isSyncing, salarySlips, incentiveSlips } = useUserData();
+  
+  // حساب إجمالي المكافآت من القصاصات الفعلية (نفس الطريقة المستخدمة في الواجهة الرئيسية)
+  const calculateTotalRewards = () => {
+    const totalBonusValue = salarySlips.reduce((total, slip) => {
+      return total + (parseFloat(slip.bonus?.replace(/,/g, '') || '0'));
+    }, 0);
+    
+    const totalRewardsValue = incentiveSlips.reduce((total, slip) => {
+      return total + (parseFloat(slip.rewards?.replace(/,/g, '') || '0'));
+    }, 0);
+    
+    return totalBonusValue + totalRewardsValue;
+  };
+
+  const totalRewards = calculateTotalRewards();
   
   const [formData, setFormData] = useState({
     name: userData.name,
@@ -65,7 +80,7 @@ export default function AccountInfoScreen() {
     sickLeaveBalance: userData.sickLeaveBalance,
     nextPromotionDate: userData.nextPromotionDate,
     nextAllowanceDate: userData.nextAllowanceDate,
-    totalRewards: userData.totalRewards,
+    totalRewards: totalRewards > 0 ? totalRewards.toString() : userData.totalRewards,
     startDate: userData.startDate,
     grade: userData.grade || '10',
     stage: userData.stage || '1',
@@ -86,6 +101,7 @@ export default function AccountInfoScreen() {
 
   // تحديث البيانات المحلية عند تغيير البيانات العامة
   useEffect(() => {
+    const updatedTotalRewards = calculateTotalRewards();
     setFormData({
       name: userData.name,
       computerId: userData.computerId,
@@ -93,13 +109,13 @@ export default function AccountInfoScreen() {
       sickLeaveBalance: userData.sickLeaveBalance,
       nextPromotionDate: userData.nextPromotionDate,
       nextAllowanceDate: userData.nextAllowanceDate,
-      totalRewards: userData.totalRewards,
+      totalRewards: updatedTotalRewards > 0 ? updatedTotalRewards.toString() : userData.totalRewards,
       startDate: userData.startDate,
       grade: userData.grade || '10',
       stage: userData.stage || '1',
       password: userData.password || ''
     });
-  }, [userData]);
+  }, [userData, salarySlips, incentiveSlips]);
 
   const handleFieldChange = (field: string, value: string) => {
     // تنسيق الأرقام للحقول المالية

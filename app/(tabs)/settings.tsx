@@ -1,10 +1,12 @@
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, ChevronRight, Settings2, Camera, Cloud, Download, Upload, X, Eye, EyeOff, Database, RefreshCw, Unlink } from 'lucide-react-native';
+import { User, ChevronRight, Settings2, Camera, Cloud, Download, Upload, X, Eye, EyeOff, Database, RefreshCw, Unlink, Settings } from 'lucide-react-native';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Toast from '@/components/Toast';
+import { checkSupabaseConfig, testDirectConnection, clearSupabaseSession, supabase } from '@/lib/supabase';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { useUserData } from '@/contexts/UserDataContext';
 
@@ -51,6 +53,149 @@ export default function SettingsScreen() {
   const [showUnlinkWarning, setShowUnlinkWarning] = useState(false);
   const [showLinkWarning, setShowLinkWarning] = useState(false);
   
+  // منطق الكشف عن الضغط المتكرر
+  const [pressCount, setPressCount] = useState(0);
+  const [lastPressTime, setLastPressTime] = useState(0);
+  const [showToolsInterface, setShowToolsInterface] = useState(false);
+  
+  const handleSettingsPress = () => {
+    const currentTime = Date.now();
+    
+    // إذا مر أكثر من 5 ثواني منذ آخر ضغط، إعادة تعيين العداد
+    if (currentTime - lastPressTime > 5000) {
+      setPressCount(1);
+    } else {
+      setPressCount(prev => prev + 1);
+    }
+    
+    setLastPressTime(currentTime);
+    
+    // إذا وصل العداد إلى 10، إظهار الأدوات مباشرة
+    if (pressCount + 1 >= 10) {
+      setShowToolsInterface(true);
+      setPressCount(0);
+    }
+  };
+
+  const handleCheckApiUrl = async () => {
+    try {
+      const config = checkSupabaseConfig();
+      const directResult = await testDirectConnection();
+      
+      let message = '=== فحص إعدادات Supabase ===\n\n';
+      
+      // إضافة معلومات الإعدادات
+      message += `URL موجود: ${!!config.url ? '✅' : '❌'}\n`;
+      message += `Key موجود: ${!!config.key ? '✅' : '❌'}\n`;
+      message += `صحة الإعدادات: ${config.isValid ? '✅ صحيح' : '❌ خطأ'}\n\n`;
+      
+      // إضافة المشاكل إن وجدت
+      if (config.issues.length > 0) {
+        message += 'المشاكل:\n';
+        config.issues.forEach(issue => {
+          message += `• ${issue}\n`;
+        });
+        message += '\n';
+      }
+      
+      // إضافة نتيجة الاتصال المباشر
+      message += `نتيجة الاتصال المباشر: ${directResult.success ? '✅ نجح' : '❌ فشل'}\n`;
+      if (!directResult.success) {
+        message += `خطأ: ${directResult.error}\n`;
+      }
+      
+      // اختبار الاتصال الفعلي مع قاعدة البيانات
+      message += '\n=== اختبار الاتصال بقاعدة البيانات ===\n';
+      
+      try {
+        // اختبار قراءة من جدول users
+        const { data: usersData, error: usersError } = await supabase
+          .from('users')
+          .select('count')
+          .limit(1);
+        
+        if (usersError) {
+          message += `❌ فشل الاتصال بقاعدة البيانات\n`;
+          message += `خطأ: ${usersError.message}\n`;
+          if (usersError.code === 'PGRST116') {
+            message += `\n💡 المشكلة: جدول 'users' غير موجود أو لا يمكن الوصول إليه`;
+          }
+        } else {
+          message += `✅ نجح الاتصال بقاعدة البيانات\n`;
+          message += `✅ يمكن قراءة البيانات من الجداول\n`;
+        }
+        
+        // اختبار كتابة (اختبار بسيط)
+        const { error: writeError } = await supabase
+          .from('users')
+          .select('id')
+          .limit(1);
+        
+        if (writeError) {
+          message += `⚠️ تحذير: مشاكل في الصلاحيات\n`;
+          message += `خطأ: ${writeError.message}\n`;
+        } else {
+          message += `✅ الصلاحيات تعمل بشكل صحيح\n`;
+        }
+        
+      } catch (dbError) {
+        message += `❌ خطأ في الاتصال بقاعدة البيانات\n`;
+        message += `خطأ: ${dbError}\n`;
+      }
+      
+      if (!directResult.success) {
+        message += `\n💡 الحل: اضغط زر "مسح الجلسات" لحل مشكلة 401`;
+      }
+      
+      Alert.alert('فحص API و URL', message);
+    } catch (error) {
+      console.error('Error checking API/URL:', error);
+      Alert.alert('خطأ', 'حدث خطأ أثناء فحص الإعدادات');
+    }
+  };
+
+  const handleClearSessions = async () => {
+    Alert.alert(
+      'مسح الجلسات',
+      'هل أنت متأكد من مسح جميع الجلسات المخزنة؟ هذا قد يحل مشاكل الاتصال بقاعدة البيانات.',
+      [
+        {
+          text: 'إلغاء',
+          style: 'cancel',
+        },
+        {
+          text: 'مسح',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              // مسح جلسات Supabase
+              await clearSupabaseSession();
+              
+              // مسح البيانات المحلية
+              await AsyncStorage.clear();
+              
+              Alert.alert(
+                'تم المسح بنجاح',
+                'تم مسح جميع الجلسات والبيانات المحلية. أعد تشغيل التطبيق.',
+                [
+                  {
+                    text: 'حسناً',
+                    onPress: () => {
+                      // يمكن إضافة إعادة تشغيل التطبيق هنا
+                    },
+                  },
+                ]
+              );
+            } catch (error) {
+              console.error('Error clearing sessions:', error);
+              Alert.alert('خطأ', 'حدث خطأ أثناء مسح الجلسات');
+            }
+          },
+        },
+      ]
+    );
+  };
+  
   const handleAccountInfoPress = () => {
     router.push('/account-info');
   };
@@ -69,7 +214,12 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <TouchableOpacity 
+        style={styles.container} 
+        activeOpacity={1} 
+        onPress={handleSettingsPress}
+      >
+        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>الحساب</Text>
           
@@ -132,6 +282,50 @@ export default function SettingsScreen() {
           />
         </View>
       </ScrollView>
+      </TouchableOpacity>
+
+      {/* واجهة الأدوات المخفية */}
+      {showToolsInterface && (
+        <View style={styles.toolsOverlay}>
+          <View style={styles.toolsContent}>
+            <View style={styles.toolsHeader}>
+              <Text style={styles.toolsTitle}>🔧 أدوات إصلاح قاعدة البيانات</Text>
+              <TouchableOpacity
+                onPress={() => setShowToolsInterface(false)}
+                style={styles.closeButton}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <Text style={styles.toolsDescription}>
+              أدوات متقدمة لإصلاح مشاكل قاعدة البيانات. استخدمها بحذر!
+            </Text>
+            
+            <TouchableOpacity
+              style={[styles.toolsButton, { backgroundColor: '#7C3AED', marginBottom: 12 }]}
+              onPress={handleCheckApiUrl}
+            >
+              <Settings size={24} color="#ffffff" />
+              <View style={styles.toolsButtonContent}>
+                <Text style={styles.toolsButtonText}>فحص API و URL</Text>
+                <Text style={styles.toolsButtonDescription}>يفحص صحة إعدادات قاعدة البيانات</Text>
+              </View>
+            </TouchableOpacity>
+            
+            <TouchableOpacity
+              style={[styles.toolsButton, { backgroundColor: '#DC2626' }]}
+              onPress={handleClearSessions}
+            >
+              <RefreshCw size={24} color="#ffffff" />
+              <View style={styles.toolsButtonContent}>
+                <Text style={styles.toolsButtonText}>مسح الجلسات</Text>
+                <Text style={styles.toolsButtonDescription}>يحل مشكلة 401 ويمسح البيانات المحلية</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       <Modal
         visible={showComputerIdInput}
@@ -601,5 +795,64 @@ const styles = StyleSheet.create({
     padding: 4,
     marginRight: 8,
     alignSelf: 'center',
+  },
+  toolsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#FFFFFF',
+    zIndex: 1000,
+  },
+  toolsContent: {
+    flex: 1,
+    padding: 24,
+    justifyContent: 'center',
+  },
+  toolsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
+  toolsTitle: {
+    fontSize: 18,
+    fontFamily: 'Cairo-Bold',
+    color: '#1F2937',
+    textAlign: 'right',
+    flex: 1,
+  },
+  toolsDescription: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Regular',
+    color: '#6B7280',
+    textAlign: 'right',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  toolsButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minHeight: 70,
+    gap: 12,
+  },
+  toolsButtonContent: {
+    flex: 1,
+  },
+  toolsButtonText: {
+    fontSize: 16,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#FFFFFF',
+  },
+  toolsButtonDescription: {
+    fontSize: 12,
+    fontFamily: 'Cairo-Regular',
+    color: '#FFFFFF',
+    opacity: 0.9,
+    marginTop: 4,
   },
 });

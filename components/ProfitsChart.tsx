@@ -5,6 +5,8 @@ import { Svg, Rect, Line, Text as SvgText } from 'react-native-svg';
 interface ProfitsData {
   year: string;
   totalProfits: number;
+  firstHalf?: number; // 50% الأولى
+  secondHalf?: number; // 50% الثانية
 }
 
 interface ProfitsChartProps {
@@ -146,17 +148,95 @@ export default function ProfitsChart({ data }: ProfitsChartProps) {
             const barHeight = getBarHeight(item.totalProfits);
             const y = getBarY(item.totalProfits);
 
+            // استخدام القيم الصحيحة من البيانات
+            const firstHalf = item.firstHalf || 0;
+            const secondHalf = item.secondHalf || 0;
+            
+            // تحديد ما إذا كان هناك فترتان أم فترة واحدة فقط
+            const hasBothPeriods = firstHalf > 0 && secondHalf > 0;
+            const hasOnlyFirst = firstHalf > 0 && secondHalf === 0;
+            const hasOnlySecond = secondHalf > 0 && firstHalf === 0;
+
             return (
               <React.Fragment key={index}>
-                {/* عمود الأرباح */}
-                <Rect
-                  x={x}
-                  y={y}
-                  width={barWidth}
-                  height={barHeight}
-                  fill="#8B5CF6"
-                  rx={4}
-                />
+                {hasBothPeriods ? (
+                  // عرض العمود مقسم إلى جزئين
+                  <>
+                    {/* النصف الأول من العمود */}
+                    <Rect
+                      x={x}
+                      y={y + getBarHeight(secondHalf)}
+                      width={barWidth}
+                      height={getBarHeight(firstHalf)}
+                      fill="#8B5CF6"
+                      rx={4}
+                    />
+                    
+                    {/* النصف الثاني من العمود */}
+                    <Rect
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={getBarHeight(secondHalf)}
+                      fill="#A78BFA"
+                      rx={4}
+                    />
+                    
+                    {/* القيمة داخل النصف الأول */}
+                    {firstHalf > 0 && (
+                      <SvgText
+                        x={x + barWidth / 2}
+                        y={y + getBarHeight(secondHalf) + getBarHeight(firstHalf) / 2 + 4}
+                        fontSize="10"
+                        fill="#FFFFFF"
+                        textAnchor="middle"
+                        fontFamily="Cairo-SemiBold"
+                      >
+                        {formatNumber(firstHalf)}
+                      </SvgText>
+                    )}
+                    
+                    {/* القيمة داخل النصف الثاني */}
+                    {secondHalf > 0 && (
+                      <SvgText
+                        x={x + barWidth / 2}
+                        y={y + getBarHeight(secondHalf) / 2 + 4}
+                        fontSize="10"
+                        fill="#FFFFFF"
+                        textAnchor="middle"
+                        fontFamily="Cairo-SemiBold"
+                      >
+                        {formatNumber(secondHalf)}
+                      </SvgText>
+                    )}
+                  </>
+                ) : (
+                  // عرض العمود كقطعة واحدة
+                  <>
+                    <Rect
+                      x={x}
+                      y={y}
+                      width={barWidth}
+                      height={barHeight}
+                      fill={hasOnlyFirst ? "#8B5CF6" : "#A78BFA"}
+                      rx={4}
+                    />
+                    
+                    {/* القيمة داخل العمود */}
+                    {(firstHalf > 0 || secondHalf > 0) && (
+                      <SvgText
+                        x={x + barWidth / 2}
+                        y={y + barHeight / 2 + 4}
+                        fontSize="10"
+                        fill="#FFFFFF"
+                        textAnchor="middle"
+                        fontFamily="Cairo-SemiBold"
+                      >
+                        {formatNumber(firstHalf > 0 ? firstHalf : secondHalf)}
+                      </SvgText>
+                    )}
+                  </>
+                )}
                 
                 {/* تسمية السنة */}
                 <SvgText
@@ -170,7 +250,7 @@ export default function ProfitsChart({ data }: ProfitsChartProps) {
                   {item.year}
                 </SvgText>
                 
-                {/* القيمة فوق العمود */}
+                {/* المجموع الكلي فوق العمود */}
                 <SvgText
                   x={x + barWidth / 2}
                   y={y - 5}
@@ -186,6 +266,18 @@ export default function ProfitsChart({ data }: ProfitsChartProps) {
           })}
         </Svg>
       </ScrollView>
+      
+      {/* مفتاح الألوان في الأسفل */}
+      <View style={styles.legend}>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendColor, { backgroundColor: '#8B5CF6' }]} />
+          <Text style={styles.legendText}>النصف الأول (50%)</Text>
+        </View>
+        <View style={styles.legendItem}>
+          <View style={[styles.legendColor, { backgroundColor: '#A78BFA' }]} />
+          <Text style={styles.legendText}>النصف الثاني (50%)</Text>
+        </View>
+      </View>
     </View>
   );
 }
@@ -201,6 +293,27 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
+  },
+  legend: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    marginBottom: 16,
+    gap: 20,
+  },
+  legendItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  legendColor: {
+    width: 16,
+    height: 16,
+    borderRadius: 4,
+  },
+  legendText: {
+    fontSize: 12,
+    fontFamily: 'Cairo-Regular',
+    color: '#374151',
   },
   scrollContent: {
     paddingRight: 20,

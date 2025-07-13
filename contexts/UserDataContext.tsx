@@ -150,6 +150,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await loadSalarySlips();
       await loadProfitsSlips();
       
+      // التحقق من التواريخ وتحديثها بعد تحميل البيانات المحلية
+      await checkAndUpdateAllowanceDate();
+      await checkAndUpdatePromotionDate();
+      
       console.log('All data loaded successfully');
     } catch (error) {
       console.error('Error loading data:', error);
@@ -334,6 +338,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       
       // مزامنة القصاصات المحلية الجديدة مع قاعدة البيانات
       await syncPendingLocalData();
+      
+      // التحقق من التواريخ وتحديثها بعد تحميل البيانات
+      await checkAndUpdateAllowanceDate();
+      await checkAndUpdatePromotionDate();
       
       console.log('All data loaded from database successfully');
     } catch (error) {
@@ -1547,6 +1555,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     const currentDay = now.getDate();
     const currentYear = now.getFullYear();
     
+    // التحقق من تصفير المكافآت
     if (currentMonth === 2 && currentDay === 1) {
       const lastResetDate = userData.lastRewardsResetDate;
       const currentResetDate = `01/02/${currentYear}`;
@@ -1558,6 +1567,86 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         });
         console.log('تم تصفير المكافآت للسنة المالية الجديدة');
       }
+    }
+
+    // التحقق من تاريخ العلاوة القادمة
+    await checkAndUpdateAllowanceDate();
+    
+    // التحقق من تاريخ الترقية القادمة
+    await checkAndUpdatePromotionDate();
+  };
+
+  // دالة للتحقق من تاريخ العلاوة وتحديثه
+  const checkAndUpdateAllowanceDate = async () => {
+    if (!userData.nextAllowanceDate) return;
+
+    try {
+      const [day, month, year] = userData.nextAllowanceDate.split('/').map(Number);
+      const allowanceDate = new Date(year, month - 1, day);
+      const today = new Date();
+      
+      // إزالة الوقت من التواريخ للمقارنة
+      today.setHours(0, 0, 0, 0);
+      allowanceDate.setHours(0, 0, 0, 0);
+      
+      // التحقق من وصول تاريخ العلاوة
+      if (today.getTime() >= allowanceDate.getTime()) {
+        // تمديد تاريخ العلاوة بمقدار سنة واحدة
+        const newYear = year + 1;
+        const newAllowanceDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${newYear}`;
+        
+        // زيادة المرحلة بمقدار 1
+        let newStage = parseInt(userData.stage || '1') + 1;
+        if (newStage > 4) {
+          newStage = 1; // إذا كانت المرحلة 4، ترجع إلى 1
+        }
+        
+        await updateUserData({
+          nextAllowanceDate: newAllowanceDate,
+          stage: newStage.toString()
+        });
+        
+        console.log(`تم تحديث تاريخ العلاوة إلى ${newAllowanceDate} والمرحلة إلى ${newStage}`);
+      }
+    } catch (error) {
+      console.error('خطأ في تحديث تاريخ العلاوة:', error);
+    }
+  };
+
+  // دالة للتحقق من تاريخ الترقية وتحديثه
+  const checkAndUpdatePromotionDate = async () => {
+    if (!userData.nextPromotionDate) return;
+
+    try {
+      const [day, month, year] = userData.nextPromotionDate.split('/').map(Number);
+      const promotionDate = new Date(year, month - 1, day);
+      const today = new Date();
+      
+      // إزالة الوقت من التواريخ للمقارنة
+      today.setHours(0, 0, 0, 0);
+      promotionDate.setHours(0, 0, 0, 0);
+      
+      // التحقق من وصول تاريخ الترقية
+      if (today.getTime() >= promotionDate.getTime()) {
+        // تمديد تاريخ الترقية بمقدار 4 سنوات
+        const newYear = year + 4;
+        const newPromotionDate = `${day.toString().padStart(2, '0')}/${month.toString().padStart(2, '0')}/${newYear}`;
+        
+        // تقليل الدرجة بمقدار 1
+        let newGrade = parseInt(userData.grade || '10') - 1;
+        if (newGrade < 1) {
+          newGrade = 1; // الدرجة لا تقل عن 1
+        }
+        
+        await updateUserData({
+          nextPromotionDate: newPromotionDate,
+          grade: newGrade.toString()
+        });
+        
+        console.log(`تم تحديث تاريخ الترقية إلى ${newPromotionDate} والدرجة إلى ${newGrade}`);
+      }
+    } catch (error) {
+      console.error('خطأ في تحديث تاريخ الترقية:', error);
     }
   };
 

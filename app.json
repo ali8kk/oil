@@ -4,7 +4,7 @@
     "slug": "bolt-expo-nativewind",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/icon.png",
+    "icon": "./assets/images/oil.png",
     "scheme": "myapp",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -18,11 +18,12 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/images/favicon.png",
+      "favicon": "./assets/images/oil.png",
       "manifest": "./manifest.json",
       "title": "Oil Salary Manager",
-      "description": "تطبيق إدارة الرواتب والحوافز",
-      "icon": "./assets/images/icon.png"
+      "description": "تطبيق إدارة الرواتب والحوافز والأرباح",
+      "icon": "./assets/images/oil.png",
+      "serviceWorker": "./sw.js"
     },
     "plugins": [
       "expo-router",
@@ -39,7 +40,11 @@
       }
     },
     "android": {
-      "package": "com.alikk8k.boltexponativewind"
+      "package": "com.alikk8k.boltexponativewind",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/oil.png",
+        "backgroundColor": "#6B46C1"
+      }
     }
   }
 }

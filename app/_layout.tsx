@@ -13,6 +13,7 @@ import { I18nManager } from 'react-native';
 import { UserDataProvider } from '@/contexts/UserDataContext';
 import SyncIndicator from '@/components/SyncIndicator';
 import { View, Text, TouchableOpacity } from 'react-native';
+import { Platform } from 'react-native';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -37,12 +38,15 @@ export default function RootLayout() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(false);
 
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    // Only run PWA install prompt logic in web environment
+    if (typeof window === 'undefined' || !window.addEventListener) return;
+    
     const handler = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
       setShowInstallPrompt(true);
     };
+    
     window.addEventListener('beforeinstallprompt', handler);
     return () => window.removeEventListener('beforeinstallprompt', handler);
   }, []);
@@ -64,6 +68,21 @@ export default function RootLayout() {
       });
     }
   }, [fontsLoaded, fontError]);
+
+  useEffect(() => {
+    // Register service worker for PWA functionality
+    if (Platform.OS === 'web' && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then((registration) => {
+            console.log('SW registered: ', registration);
+          })
+          .catch((registrationError) => {
+            console.log('SW registration failed: ', registrationError);
+          });
+      });
+    }
+  }, []);
 
   // Show error if fonts failed to load
   if (fontError) {

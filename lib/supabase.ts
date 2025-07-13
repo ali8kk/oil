@@ -86,9 +86,175 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   },
 });
 
+// دالة لمسح الجلسات المخزنة (مفيدة عند تغيير JWT Key)
+export const clearSupabaseSession = async () => {
+  try {
+    await supabase.auth.signOut();
+    await AsyncStorage.removeItem('supabase.auth.token');
+    await AsyncStorage.removeItem('supabase.auth.refreshToken');
+    console.log('Supabase session cleared successfully');
+  } catch (error) {
+    console.error('Error clearing Supabase session:', error);
+  }
+};
+
 // دالة للتحقق من اتصال Supabase
 export const isSupabaseConfigured = () => {
   return !!(supabaseUrl && supabaseAnonKey);
+};
+
+// دالة لإعادة تهيئة الاتصال (مفيدة بعد تغيير JWT Key)
+export const reinitializeSupabaseConnection = async () => {
+  try {
+    // مسح الجلسات القديمة
+    await clearSupabaseSession();
+    
+    // إعادة إنشاء العميل
+    const newSupabase = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: {
+        storage: AsyncStorage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    });
+    
+    console.log('Supabase connection reinitialized successfully');
+    return newSupabase;
+  } catch (error) {
+    console.error('Error reinitializing Supabase connection:', error);
+    return null;
+  }
+};
+
+// دالة لاختبار الاتصال بقاعدة البيانات
+export const testDatabaseConnection = async () => {
+  try {
+    console.log('Testing database connection...');
+    
+    // اختبار الاتصال البسيط
+    const { data, error } = await supabase
+      .from('users')
+      .select('count')
+      .limit(1);
+    
+    if (error) {
+      console.error('Database connection test failed:', error);
+      return {
+        success: false,
+        error: error.message,
+        details: error
+      };
+    }
+    
+    console.log('Database connection test successful');
+    return {
+      success: true,
+      message: 'تم الاتصال بقاعدة البيانات بنجاح'
+    };
+  } catch (error) {
+    console.error('Database connection test error:', error);
+    return {
+      success: false,
+      error: 'خطأ في الاتصال بقاعدة البيانات',
+      details: error
+    };
+  }
+};
+
+// دالة لفحص إعدادات Supabase
+export const checkSupabaseConfig = () => {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL;
+  const key = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY;
+  
+  console.log('=== Supabase Configuration Check ===');
+  console.log('URL exists:', !!url);
+  console.log('Key exists:', !!key);
+  
+  if (url) {
+    console.log('URL format:', url.startsWith('https://') ? 'Valid' : 'Invalid');
+    console.log('URL length:', url.length);
+  }
+  
+  if (key) {
+    console.log('Key format:', key.startsWith('eyJ') ? 'Valid JWT' : 'Invalid format');
+    console.log('Key length:', key.length);
+  }
+  
+  const issues = [];
+  
+  if (!url) {
+    issues.push('EXPO_PUBLIC_SUPABASE_URL غير موجود');
+  } else if (!url.startsWith('https://')) {
+    issues.push('EXPO_PUBLIC_SUPABASE_URL يجب أن يبدأ بـ https://');
+  } else if (!url.includes('.supabase.co')) {
+    issues.push('EXPO_PUBLIC_SUPABASE_URL يجب أن يحتوي على .supabase.co');
+  }
+  
+  if (!key) {
+    issues.push('EXPO_PUBLIC_SUPABASE_ANON_KEY غير موجود');
+  } else if (!key.startsWith('eyJ')) {
+    issues.push('EXPO_PUBLIC_SUPABASE_ANON_KEY يجب أن يبدأ بـ eyJ');
+  } else if (key.length < 100) {
+    issues.push('EXPO_PUBLIC_SUPABASE_ANON_KEY قصير جداً');
+  }
+  
+  return {
+    url,
+    key: key ? `${key.substring(0, 20)}...` : null,
+    issues,
+    isValid: issues.length === 0
+  };
+};
+
+// دالة لاختبار الاتصال المباشر
+export const testDirectConnection = async () => {
+  try {
+    console.log('Testing direct connection to Supabase...');
+    
+    const config = checkSupabaseConfig();
+    console.log('Configuration check:', config);
+    
+    if (!config.isValid) {
+      return {
+        success: false,
+        error: 'إعدادات Supabase غير صحيحة',
+        details: config.issues
+      };
+    }
+    
+    // اختبار الاتصال المباشر
+    const response = await fetch(`${process.env.EXPO_PUBLIC_SUPABASE_URL}/rest/v1/`, {
+      headers: {
+        'apikey': process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '',
+        'Authorization': `Bearer ${process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || ''}`
+      }
+    });
+    
+    console.log('Direct connection response status:', response.status);
+    
+    if (response.ok) {
+      return {
+        success: true,
+        message: 'تم الاتصال بـ Supabase بنجاح',
+        status: response.status
+      };
+    } else {
+      const errorText = await response.text();
+      return {
+        success: false,
+        error: `فشل الاتصال: ${response.status}`,
+        details: errorText
+      };
+    }
+  } catch (error) {
+    console.error('Direct connection test error:', error);
+    return {
+      success: false,
+      error: 'خطأ في الاتصال المباشر',
+      details: error
+    };
+  }
 };
 
 // دوال قاعدة البيانات

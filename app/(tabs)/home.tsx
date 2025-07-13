@@ -7,6 +7,7 @@ import Toast from '@/components/Toast';
 import IncentiveSlipsTable from '@/components/IncentiveSlipsTable';
 import SalarySlipsTable from '@/components/SalarySlipsTable';
 import ProfitsSlipsTable from '@/components/ProfitsSlipsTable';
+import InstallPWAButton from '@/components/InstallPWAButton';
 
 import { useUserData } from '@/contexts/UserDataContext';
 
@@ -77,6 +78,7 @@ export default function SlipsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
+      <InstallPWAButton />
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false} key={refreshKey}>
         <Text style={styles.sectionTitle}>القصاصات المالية</Text>
         

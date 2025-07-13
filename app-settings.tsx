@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowRight, Save, Settings2, Calendar, Heart, BookOpen } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useUserData } from './contexts/UserDataContext';
+
 
 interface NumberInputFieldProps {
   icon: React.ReactNode;
@@ -140,6 +141,8 @@ export default function AppSettingsScreen() {
     }
   };
 
+
+
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView style={styles.scrollView}>
@@ -236,6 +239,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Cairo-SemiBold',
     color: '#ffffff'
   },
+
   cancelButton: {
     backgroundColor: '#F3F4F6'
   },

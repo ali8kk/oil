@@ -51,15 +51,29 @@ export default function ProfitsSlipsTable({ visible, onClose }: ProfitsSlipsTabl
     return num.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
-  // ترتيب القصاصات تنازلياً حسب التاريخ
+  // ترتيب القصاصات حسب السنة (تنازلي) والفترة (الثانية أولاً)
   const sortedProfitsSlips = [...profitsSlips].sort((a, b) => {
-    // تحويل التاريخ إلى رقم للمقارنة
-    const getDateValue = (dateStr: string) => {
-      const [month, year] = dateStr.split('/');
-      return parseInt(year) * 100 + parseInt(month);
-    };
+    // مقارنة السنة أولاً
+    const yearA = parseInt(a.profitYear);
+    const yearB = parseInt(b.profitYear);
     
-    return getDateValue(b.profitYear) - getDateValue(a.profitYear); // ترتيب تنازلي
+    if (yearA !== yearB) {
+      return yearB - yearA; // ترتيب تنازلي للسنة
+    }
+    
+    // إذا كانت السنة متشابهة، رتب حسب الفترة
+    const periodA = a.profitPeriod;
+    const periodB = b.profitPeriod;
+    
+    // الفترة الثانية تأتي أولاً
+    if (periodA === '50% الثانية' && periodB === '50% الأولى') {
+      return -1;
+    }
+    if (periodA === '50% الأولى' && periodB === '50% الثانية') {
+      return 1;
+    }
+    
+    return 0;
   });
 
   return (
@@ -107,9 +121,9 @@ export default function ProfitsSlipsTable({ visible, onClose }: ProfitsSlipsTabl
                   {/* Table Header */}
                   <View style={styles.tableHeader}>
                     <Text style={[styles.headerCell, styles.actionCell]}>الإجراءات</Text>
-                    <Text style={[styles.headerCell, styles.pointsCell]}>النقاط</Text>
                     <Text style={[styles.headerCell, styles.yearCell]}>السنة</Text>
                     <Text style={[styles.headerCell, styles.periodCell]}>الفترة</Text>
+                    <Text style={[styles.headerCell, styles.pointsCell]}>النقاط</Text>
                     <Text style={[styles.headerCell, styles.ratingCell]}>التقييم</Text>
                     <Text style={[styles.headerCell, styles.profitsCell]}>الأرباح الكلية</Text>
                   </View>
@@ -135,14 +149,14 @@ export default function ProfitsSlipsTable({ visible, onClose }: ProfitsSlipsTabl
                             <Trash2 size={16} color="#EF4444" />
                           </TouchableOpacity>
                         </View>
-                        <Text style={[styles.cell, styles.pointsCell]}>
-                          {formatNumber(slip.profitPoints)}
-                        </Text>
                         <Text style={[styles.cell, styles.yearCell]}>
                           {slip.profitYear}
                         </Text>
                         <Text style={[styles.cell, styles.periodCell]}>
                           {slip.profitPeriod}
+                        </Text>
+                        <Text style={[styles.cell, styles.pointsCell]}>
+                          {formatNumber(slip.profitPoints)}
                         </Text>
                         <Text style={[styles.cell, styles.ratingCell]}>
                           {slip.rating || 'متوسط'}

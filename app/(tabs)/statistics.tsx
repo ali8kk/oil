@@ -168,22 +168,33 @@ export default function StatisticsScreen() {
 
   // حساب البيانات لمخطط الأرباح (يجمع الفترتين لكل سنة)
   const getProfitsChartData = () => {
-    const yearlyData: { [key: string]: number } = {};
+    const yearlyData: { [key: string]: { firstHalf: number; secondHalf: number; total: number } } = {};
 
     profitsSlips.forEach(slip => {
       const year = slip.profitYear;
       const profits = parseFloat(slip.totalProfits.replace(/,/g, '')) || 0;
       
       if (!yearlyData[year]) {
-        yearlyData[year] = 0;
+        yearlyData[year] = { firstHalf: 0, secondHalf: 0, total: 0 };
       }
-      yearlyData[year] += profits;
+      
+      // تقسيم الأرباح إلى النصفين بناءً على الفترة
+      const period = slip.profitPeriod;
+      if (period === '50% الأولى' || period === 'first') {
+        yearlyData[year].firstHalf += profits;
+      } else if (period === '50% الثانية' || period === 'second') {
+        yearlyData[year].secondHalf += profits;
+      }
+      
+      yearlyData[year].total += profits;
     });
 
     return Object.entries(yearlyData)
-      .map(([year, totalProfits]) => ({
+      .map(([year, data]) => ({
         year,
-        totalProfits,
+        totalProfits: data.total,
+        firstHalf: data.firstHalf,
+        secondHalf: data.secondHalf,
       }))
       .sort((a, b) => parseInt(a.year) - parseInt(b.year));
   };
@@ -263,34 +274,34 @@ export default function StatisticsScreen() {
       .sort((a, b) => parseInt(a.year) - parseInt(b.year));
   };
 
-  // حساب بيانات مخطط الدخل السنوي
+  // حساب البيانات لمخطط الدخل السنوي (يجمع الرواتب والحوافز والأرباح فقط)
   const getYearlyIncomeChartData = () => {
     const yearlyData: { [key: string]: { salary: number; incentive: number; profits: number; total: number } } = {};
     
-    // إضافة الرواتب السنوية
+    // إضافة الرواتب السنوية (بدون المكافآت)
     salarySlips.forEach(slip => {
       const [month, year] = slip.month.split('/');
       const salary = parseFloat(slip.totalSalary?.replace(/,/g, '') || '0');
-      const bonus = parseFloat(slip.bonus?.replace(/,/g, '') || '0');
+      // لا نضيف المكافآت (bonus) إلى الراتب
       const slipYear = parseInt(year);
       
       if (!yearlyData[slipYear]) {
         yearlyData[slipYear] = { salary: 0, incentive: 0, profits: 0, total: 0 };
       }
-      yearlyData[slipYear].salary += salary + bonus;
+      yearlyData[slipYear].salary += salary;
     });
     
-    // إضافة الحوافز السنوية
+    // إضافة الحوافز السنوية (بدون المكافآت)
     incentiveSlips.forEach(slip => {
       const [month, year] = slip.month.split('/');
       const incentive = parseFloat(slip.totalIncentive?.replace(/,/g, '') || '0');
-      const rewards = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
+      // لا نضيف المكافآت (rewards) إلى الحافز
       const slipYear = parseInt(year);
       
       if (!yearlyData[slipYear]) {
         yearlyData[slipYear] = { salary: 0, incentive: 0, profits: 0, total: 0 };
       }
-      yearlyData[slipYear].incentive += incentive + rewards;
+      yearlyData[slipYear].incentive += incentive;
     });
     
     // إضافة الأرباح السنوية
