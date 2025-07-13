@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, SafeAreaView } from 'react-native';
-import { useUserData } from '@/contexts/UserDataContext';
-import Chart from '@/components/Chart';
-import IncentiveChart from '@/components/IncentiveChart';
-import SalaryChart from '@/components/SalaryChart';
-import ProfitsChart from '@/components/ProfitsChart';
-import RatingChart from '@/components/RatingChart';
-import YearlyIncomeChart from '@/components/YearlyIncomeChart';
-import Toast from '@/components/Toast';
+import { useUserData } from '../../contexts/UserDataContext';
+import Chart from '../../components/Chart';
+import IncentiveChart from '../../components/IncentiveChart';
+import SalaryChart from '../../components/SalaryChart';
+import ProfitsChart from '../../components/ProfitsChart';
+import RatingChart from '../../components/RatingChart';
+import YearlyIncomeChart from '../../components/YearlyIncomeChart';
+import Toast from '../../components/Toast';
 import { 
   DollarSign, 
   TrendingUp, 

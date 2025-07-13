@@ -1,10 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { View, Text } from 'react-native';
-import { IncentiveData } from '@/components/IncentiveModal';
-import { SalaryData } from '@/components/SalaryModal';
-import { ProfitsData } from '@/components/ProfitsModal';
-import { databaseService, User, IncentiveSlip, SalarySlip, ProfitsSlip, isSupabaseConfigured } from '@/lib/supabase';
+import { IncentiveData } from '../components/IncentiveModal';
+import { SalaryData } from '../components/SalaryModal';
+import { ProfitsData } from '../components/ProfitsModal';
+import { databaseService, User, IncentiveSlip, SalarySlip, ProfitsSlip, isSupabaseConfigured } from '../lib/supabase';
 import { router } from 'expo-router';
 
 export interface UserData {

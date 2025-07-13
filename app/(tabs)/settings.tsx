@@ -4,11 +4,11 @@ import { User, ChevronRight, Settings2, Camera, Cloud, Download, Upload, X, Eye,
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState, useEffect } from 'react';
-import Toast from '@/components/Toast';
-import { checkSupabaseConfig, testDirectConnection, clearSupabaseSession, supabase } from '@/lib/supabase';
+import Toast from '../../components/Toast';
+import { checkSupabaseConfig, testDirectConnection, clearSupabaseSession, supabase } from '../../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-import { useUserData } from '@/contexts/UserDataContext';
+import { useUserData } from '../../contexts/UserDataContext';
 
 interface SettingItemProps {
   icon: React.ReactNode;

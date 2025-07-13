@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Settings, RefreshCw } from 'lucide-react-native';
-import { checkSupabaseConfig, testDirectConnection, clearSupabaseSession, supabase } from '@/lib/supabase';
+import { checkSupabaseConfig, testDirectConnection, clearSupabaseSession, supabase } from '../../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function AddScreen() {

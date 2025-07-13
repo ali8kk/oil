@@ -5,9 +5,9 @@ import { TrendingUp } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
-import { useUserData } from '@/contexts/UserDataContext';
-import DatePicker from '@/components/DatePicker';
-import DropdownPicker from '@/components/DropdownPicker';
+import { useUserData } from '../contexts/UserDataContext';
+import DatePicker from '../components/DatePicker';
+import DropdownPicker from '../components/DropdownPicker';
 
 
 interface EditFieldProps {

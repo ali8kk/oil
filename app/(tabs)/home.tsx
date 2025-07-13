@@ -3,13 +3,13 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Award, DollarSign, TrendingUp, ChevronRight } from 'lucide-react-native';
 import { useState, useCallback } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
-import Toast from '@/components/Toast';
-import IncentiveSlipsTable from '@/components/IncentiveSlipsTable';
-import SalarySlipsTable from '@/components/SalarySlipsTable';
-import ProfitsSlipsTable from '@/components/ProfitsSlipsTable';
-import InstallPWAButton from '@/components/InstallPWAButton';
+import Toast from '../../components/Toast';
+import IncentiveSlipsTable from '../../components/IncentiveSlipsTable';
+import SalarySlipsTable from '../../components/SalarySlipsTable';
+import ProfitsSlipsTable from '../../components/ProfitsSlipsTable';
+import InstallPWAButton from '../../components/InstallPWAButton';
 
-import { useUserData } from '@/contexts/UserDataContext';
+import { useUserData } from '../../contexts/UserDataContext';
 
 interface SlipCardProps {
   icon: React.ReactNode;

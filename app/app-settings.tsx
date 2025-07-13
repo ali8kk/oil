@@ -4,7 +4,7 @@ import { ArrowRight, Save, Settings2, Calendar, Heart, BookOpen } from 'lucide-r
 import { LinearGradient } from 'expo-linear-gradient';
 import { useState, useEffect } from 'react';
 import { router } from 'expo-router';
-import { useUserData } from '@/contexts/UserDataContext';
+import { useUserData } from '../contexts/UserDataContext';
 
 
 interface SettingFieldProps {

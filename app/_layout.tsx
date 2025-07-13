@@ -1,5 +1,5 @@
 import { Stack } from 'expo-router';
-import { UserDataProvider } from '@/contexts/UserDataContext';
+import { UserDataProvider } from '../contexts/UserDataContext';
 import { useFonts } from 'expo-font';
 import { Cairo_400Regular, Cairo_600SemiBold, Cairo_700Bold } from '@expo-google-fonts/cairo';
 import * as SplashScreen from 'expo-splash-screen';

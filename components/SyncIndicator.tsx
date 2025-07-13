@@ -1,7 +1,7 @@
 import { View, Text, Animated, StyleSheet } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { Check } from 'lucide-react-native';
-import { useUserData } from '@/contexts/UserDataContext';
+import { useUserData } from '../contexts/UserDataContext';
 
 export default function SyncIndicator() {
   const { isSyncing, isConnectedToDatabase } = useUserData();

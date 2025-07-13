@@ -3,10 +3,10 @@ import { Chrome as Home, User, Settings, ChartBar as BarChart3, FileText, Plus, 
 import { View, TouchableOpacity, StyleSheet, Text, Animated } from 'react-native';
 import { useState, useEffect, useRef } from 'react';
 import { Award, DollarSign, TrendingUp } from 'lucide-react-native';
-import IncentiveModal, { IncentiveData } from '@/components/IncentiveModal';
-import SalaryModal, { SalaryData } from '@/components/SalaryModal';
-import ProfitsModal, { ProfitsData } from '@/components/ProfitsModal';
-import { useUserData } from '@/contexts/UserDataContext';
+import IncentiveModal, { IncentiveData } from '../../components/IncentiveModal';
+import SalaryModal, { SalaryData } from '../../components/SalaryModal';
+import ProfitsModal, { ProfitsData } from '../../components/ProfitsModal';
+import { useUserData } from '../../contexts/UserDataContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';

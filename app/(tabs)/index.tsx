@@ -4,9 +4,9 @@ import { Eye, EyeOff, BookOpen } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
 import { useFocusEffect } from '@react-navigation/native';
 import { useCallback } from 'react';
-import Toast from '@/components/Toast';
+import Toast from '../../components/Toast';
 
-import { useUserData } from '@/contexts/UserDataContext';
+import { useUserData } from '../../contexts/UserDataContext';
 
 interface InfoRowProps {
   label: string;

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
 import { Pen, Trash2, Plus, X } from 'lucide-react-native';
-import { useUserData } from '@/contexts/UserDataContext';
+import { useUserData } from '../contexts/UserDataContext';
 import { ProfitsData } from './ProfitsModal';
 import ProfitsModal from './ProfitsModal';
 
