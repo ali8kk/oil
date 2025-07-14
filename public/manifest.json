@@ -30,13 +30,13 @@
       "name": "الصفحة الرئيسية",
       "short_name": "الرئيسية",
       "url": "/",
-      "icons": [{ "src": "/oil.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/oil-192.png", "sizes": "192x192" }]
     },
     {
       "name": "الإحصائيات",
       "short_name": "إحصائيات",
       "url": "/statistics",
-      "icons": [{ "src": "/oil.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/oil-192.png", "sizes": "192x192" }]
     }
   ],
   "screenshots": [
