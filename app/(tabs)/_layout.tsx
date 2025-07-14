@@ -457,7 +457,8 @@ const styles = StyleSheet.create({
   },
   topHeader: {
     backgroundColor: '#6B46C1',
-    paddingBottom: 10,
+    paddingBottom: 16, // زيادة بسيطة
+    paddingTop: 10, // زيادة بسيطة
     paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
@@ -476,12 +477,15 @@ const styles = StyleSheet.create({
     width: '100%',
     paddingHorizontal: 20,
     position: 'relative',
+    // height: '100%', // إزالة هذا السطر
   },
   headerTitle: {
     fontSize: 18,
     fontFamily: 'Cairo-Bold',
     color: '#FFFFFF',
     textAlign: 'center',
+    // flex: 1, // إزالة هذا السطر
+    // textAlignVertical: 'center', // إزالة هذا السطر
   },
   syncContainer: {
     position: 'absolute',
