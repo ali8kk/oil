@@ -1,0 +1,50 @@
+{
+  "name": "Oil Salary Manager",
+  "short_name": "OilSalary",
+  "description": "تطبيق إدارة الرواتب والحوافز والأرباح",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#ffffff",
+  "theme_color": "#6B46C1",
+  "scope": "/",
+  "lang": "ar",
+  "dir": "rtl",
+  "categories": ["finance", "productivity", "business"],
+  "icons": [
+    {
+      "src": "/oil-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/oil.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "الصفحة الرئيسية",
+      "short_name": "الرئيسية",
+      "url": "/",
+      "icons": [{ "src": "/oil.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "الإحصائيات",
+      "short_name": "إحصائيات",
+      "url": "/statistics",
+      "icons": [{ "src": "/oil.png", "sizes": "192x192" }]
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/oil.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide"
+    }
+  ]
+}
