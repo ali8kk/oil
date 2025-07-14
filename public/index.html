@@ -13,13 +13,33 @@
     <!-- أيقونات الفافيكون المتعددة الأحجام -->
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
-
-    <!-- أيقونة Apple لأجهزة iOS -->
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+
+    <!-- لون شريط العنوان -->
+    <meta name="theme-color" content="#6B46C1" />
+
+    <!-- The `react-native-web` recommended style reset -->
+    <style id="expo-reset">
+      html,
+      body {
+        height: 100%;
+      }
+      body {
+        overflow: hidden;
+      }
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+    </style>
   </head>
 
   <body>
-    <noscript>يجب تفعيل JavaScript لتشغيل التطبيق.</noscript>
+    <noscript>
+      You need to enable JavaScript to run this app.
+    </noscript>
     <div id="root"></div>
+    <script src="/_expo/static/js/web/entry-0b9d22827bc02dfa259b409549abe2f2.js" defer></script>
   </body>
 </html>
