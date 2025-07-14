@@ -25,11 +25,11 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "/oil.png",
+      "favicon": "/favicon-32x32.png",
       "themeColor": "#6B46C1",
       "meta": {
         "apple": {
-          "touchIcon": "/oil-192.png",
+          "touchIcon": "/apple-touch-icon.png",
           "statusBarStyle": "default"
         },
         "description": "تطبيق إدارة الرواتب والحوافز والأرباح",
@@ -45,13 +45,31 @@
         "orientation": "portrait",
         "icons": [
           {
-            "src": "/oil-192.png",
+            "src": "/favicon-32x32.png",
+            "sizes": "32x32",
+            "type": "image/png",
+            "purpose": "any maskable"
+          },
+          {
+            "src": "/favicon-16x16.png",
+            "sizes": "16x16",
+            "type": "image/png",
+            "purpose": "any maskable"
+          },
+          {
+            "src": "/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png",
+            "purpose": "any maskable"
+          },
+          {
+            "src": "/android-chrome-192x192.png",
             "sizes": "192x192",
             "type": "image/png",
             "purpose": "any maskable"
           },
           {
-            "src": "/oil.png",
+            "src": "/android-chrome-512x512.png",
             "sizes": "512x512",
             "type": "image/png",
             "purpose": "any maskable"
