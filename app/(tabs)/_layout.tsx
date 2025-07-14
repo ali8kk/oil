@@ -10,6 +10,10 @@ import { useUserData } from '../../contexts/UserDataContext';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useRouter, useSegments } from 'expo-router';
+import SyncIndicator from '../../components/SyncIndicator';
+import { Svg, Path } from 'react-native-svg';
+import Ionicons from '@expo/vector-icons/Ionicons';
 
 interface FabMenuItemProps {
   icon: React.ReactNode;
@@ -27,66 +31,6 @@ function FabMenuItem({ icon, title, onPress }: FabMenuItemProps) {
         </View>
       </View>
     </TouchableOpacity>
-  );
-}
-
-function SyncIndicator() {
-  const { isSyncing, isConnectedToDatabase } = useUserData();
-  const [showSyncMessage, setShowSyncMessage] = useState(false);
-  const [syncCompleted, setSyncCompleted] = useState(false);
-  const spinValue = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    console.log('SyncIndicator - isSyncing:', isSyncing, 'isConnectedToDatabase:', isConnectedToDatabase);
-    
-    if (isSyncing && isConnectedToDatabase) {
-      console.log('Starting sync indicator');
-      setShowSyncMessage(true);
-      setSyncCompleted(false);
-      
-      // بدء دوران الكرة
-      Animated.loop(
-        Animated.timing(spinValue, {
-          toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
-        })
-      ).start();
-    } else if (!isSyncing && showSyncMessage && isConnectedToDatabase) {
-      console.log('Sync completed');
-      // إيقاف الدوران وإظهار علامة الصح
-      spinValue.stopAnimation();
-      setSyncCompleted(true);
-      
-      // إخفاء الرسالة بعد ثانيتين
-      setTimeout(() => {
-        setShowSyncMessage(false);
-        setSyncCompleted(false);
-      }, 2000);
-    }
-  }, [isSyncing, isConnectedToDatabase]);
-
-  const spin = spinValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['0deg', '360deg'],
-  });
-
-  // للاختبار - إظهار المؤشر دائماً
-  return (
-    <View style={styles.syncIndicator}>
-      <Text style={styles.syncText}>
-        {syncCompleted ? 'تمت المزامنة' : 'يتم المزامنة'}
-      </Text>
-      <View style={styles.syncIconContainer}>
-        {syncCompleted ? (
-          <Check size={12} color="#FFFFFF" />
-        ) : (
-          <Animated.View style={[styles.spinningCircle, { transform: [{ rotate: spin }] }]}>
-            <View style={styles.halfCircle} />
-          </Animated.View>
-        )}
-      </View>
-    </View>
   );
 }
 
@@ -215,11 +159,9 @@ function CustomTabBar() {
 
       {/* FAB Button with White Circle */}
       <View style={styles.fabContainer}>
+        {/* تم حذف القوس الأبيض */}
         <View style={styles.fabWhiteCircle}>
-          <TouchableOpacity 
-            style={styles.fab} 
-            onPress={handleFabPress}
-          >
+          <TouchableOpacity style={styles.fab} onPress={handleFabPress}>
             <Animated.View
               style={{
                 transform: [{
@@ -230,7 +172,7 @@ function CustomTabBar() {
                 }]
               }}
             >
-              <Plus size={24} color="#FFFFFF" />
+              <Ionicons name="add" size={32} color="#fff" />
             </Animated.View>
           </TouchableOpacity>
         </View>
@@ -271,9 +213,29 @@ function CustomTabBar() {
 
 export default function TabLayout() {
   const insets = useSafeAreaInsets();
+  const segments = useSegments();
+
+  // استخراج اسم التبويب الحالي
+  const currentTab = segments[segments.length - 1];
+  let headerTitle = 'المعلومات الشخصية';
+  if (currentTab === 'home') headerTitle = 'القصاصات';
+  else if (currentTab === 'statistics') headerTitle = 'الإحصائيات';
+  else if (currentTab === 'settings') headerTitle = 'الإعدادات';
+  else if (currentTab === 'add') headerTitle = '';
+  // أي قيمة أخرى أو فارغة تبقى 'المعلومات الشخصية'
+
   return (
     <>
-      {/* تم حذف الشريط العلوي البنفسجي */}
+      {/* الشريط العلوي البنفسجي */}
+      <View style={[styles.topHeader, { paddingTop: insets.top }]}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>{headerTitle}</Text>
+          <View style={styles.syncContainer}>
+            <SyncIndicator />
+          </View>
+        </View>
+      </View>
+      
       <Tabs
         screenOptions={{
           headerShown: false,
@@ -373,6 +335,7 @@ const styles = StyleSheet.create({
     left: '50%',
     marginLeft: -32,
     zIndex: 1001,
+    // overflow: 'visible',
   },
   fabWhiteCircle: {
     width: 64,
@@ -381,11 +344,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
+    // elevation: 8,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.3,
+    // shadowRadius: 8,
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
@@ -396,6 +359,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#6B46C1',
     justifyContent: 'center',
     alignItems: 'center',
+    // elevation: 8,
+    // shadowColor: '#000',
+    // shadowOffset: { width: 0, height: 4 },
+    // shadowOpacity: 0.3,
+    // shadowRadius: 8,
   },
   fabMenuContainer: {
     position: 'absolute',
@@ -446,9 +414,6 @@ const styles = StyleSheet.create({
     zIndex: 999,
   },
   syncIndicator: {
-    position: 'absolute',
-    top: -45,
-    right: 15,
     backgroundColor: '#10B981',
     paddingVertical: 6,
     paddingHorizontal: 10,
@@ -456,7 +421,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    zIndex: 9999,
     elevation: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -467,26 +431,71 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontFamily: 'Cairo-Regular',
     color: '#FFFFFF',
-    fontWeight: 'bold',
   },
   syncIconContainer: {
-    width: 14,
-    height: 14,
+    width: 12,
+    height: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   spinningCircle: {
-    width: '100%',
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderTopColor: 'transparent',
   },
   halfCircle: {
     width: 12,
     height: 12,
-    backgroundColor: '#FFFFFF',
     borderRadius: 6,
-    borderTopLeftRadius: 0,
-    borderBottomLeftRadius: 0,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+    borderTopColor: 'transparent',
+    borderRightColor: 'transparent',
+  },
+  topHeader: {
+    backgroundColor: '#6B46C1',
+    paddingBottom: 10,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // borderBottomLeftRadius: 20, // إزالة الحواف المستديرة
+    // borderBottomRightRadius: 20, // إزالة الحواف المستديرة
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '100%',
+    paddingHorizontal: 20,
+    position: 'relative',
+  },
+  headerTitle: {
+    fontSize: 18,
+    fontFamily: 'Cairo-Bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  syncContainer: {
+    position: 'absolute',
+    right: 0,
+  },
+  fabHalfCircle: {
+    position: 'absolute',
+    top: -32,
+    left: 0,
+    right: 0,
+    height: 32,
+    borderTopLeftRadius: 32,
+    borderTopRightRadius: 32,
+    backgroundColor: '#6B46C1',
+    zIndex: 1,
   },
 });

@@ -43,6 +43,7 @@ interface UserDataContextType {
   triggerSaveToast: () => void;
   // Sync loading state
   isSyncing: boolean;
+  manualSyncing: boolean;
   // Database functions
   linkToDatabase: (computerId: string, password: string) => Promise<{ success: boolean; message: string }>;
   unlinkFromDatabase: () => Promise<{ success: boolean; message: string }>;
@@ -120,6 +121,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [manualSyncing, setManualSyncing] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   // تحميل البيانات من التخزين المحلي عند بدء التطبيق
@@ -456,12 +458,12 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   };
 
   const addIncentiveSlip = async (slip: IncentiveData) => {
+    setManualSyncing(true);
+    setIsSyncing(true);
+    console.log('setIsSyncing(true) - addIncentiveSlip');
+    console.log('addIncentiveSlip called with:', slip);
+    let databaseSuccess = true;
     try {
-      setIsSyncing(true);
-      console.log('addIncentiveSlip called with:', slip);
-      
-      let databaseSuccess = true;
-      
       // إنشاء قصاصة محلية مؤقتة بدون ID
       const tempSlip = { ...slip, id: undefined };
       const updatedSlips = [...incentiveSlips, tempSlip];
@@ -492,12 +494,12 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('Database error in addIncentiveSlip:', dbError);
           databaseSuccess = false;
-          
           // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
           const localSlip = { ...slip, id: Date.now() };
           const localUpdatedSlips = [...incentiveSlips, localSlip];
           setIncentiveSlips(localUpdatedSlips);
           await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
+          throw dbError; // أعد رمي الخطأ حتى لا يتم تعيين setManualSyncing(false)
         }
       } else {
         // إذا لم يكن متصل بقاعدة البيانات، نعطي القصاصة ID محلي
@@ -577,27 +579,29 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         triggerSaveToast();
       }
     } catch (error) {
+      setIsSyncing(false);
+      // لا تعيّن setManualSyncing(false) هنا حتى لا تظهر "تمت المزامنة" عند الفشل
       console.log('Error adding incentive slip:', error);
     } finally {
       setIsSyncing(false);
+      setManualSyncing(false);
+      console.log('setIsSyncing(false) - addIncentiveSlip');
     }
   };
 
   const updateIncentiveSlip = async (index: number, slip: IncentiveData) => {
+    setManualSyncing(true);
+    setIsSyncing(true);
+    console.log('setIsSyncing(true) - updateIncentiveSlip');
+    console.log('updateIncentiveSlip called with:', { index, slip });
     try {
-      setIsSyncing(true);
-      console.log('updateIncentiveSlip called with:', { index, slip });
-      
       const existingSlip = incentiveSlips[index];
       console.log('existingSlip:', existingSlip);
-      
       let databaseSuccess = true;
-      
       const updatedSlips = [...incentiveSlips];
       updatedSlips[index] = { ...slip, id: updatedSlips[index]?.id || Date.now() };
       setIncentiveSlips(updatedSlips);
       await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(updatedSlips));
-      
       if (currentUserId && isConnectedToDatabase && isSupabaseConfigured() && updatedSlips[index]?.id) {
         try {
           // محاولة التحديث مباشرة
@@ -614,115 +618,25 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('Database error in updateIncentiveSlip:', dbError);
           databaseSuccess = false;
-          console.log('Keeping local changes only due to database error');
+          throw dbError;
         }
       }
-      
-      // تحديث إجمالي الحوافز
-      const currentIncentiveTotal = parseFloat(userData.totalIncentive?.replace(/,/g, '') || '0');
-      const oldSlipValue = parseFloat(existingSlip.totalIncentive?.replace(/,/g, '') || '0');
-      const newSlipValue = parseFloat(slip.totalIncentive?.replace(/,/g, '') || '0');
-      const updatedIncentiveTotal = currentIncentiveTotal - oldSlipValue + newSlipValue;
-      
-      // تحديث المكافآت
-      const currentRewards = parseFloat(userData.totalRewards?.replace(/,/g, '') || '0');
-      const oldSlipRewards = parseFloat(existingSlip.rewards?.replace(/,/g, '') || '0');
-      const newSlipRewards = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
-      const updatedRewards = currentRewards - oldSlipRewards + newSlipRewards;
-      
-      // تحديث أرصدة الإجازات
-      const currentVacationBalance = parseInt(userData.vacationBalance) || 0;
-      const currentSickLeaveBalance = parseInt(userData.sickLeaveBalance) || 0;
-      const regularLeaveBonus = parseInt(userData.regularLeaveBonus) || 3;
-      const sickLeaveBonus = parseInt(userData.sickLeaveBonus) || 3;
-      
-      // حساب القيم القديمة والجديدة
-      const oldRegularLeaveValue = parseFloat(existingSlip.regularLeave?.replace(/,/g, '') || '0');
-      const newRegularLeaveValue = parseFloat(slip.regularLeave?.replace(/,/g, '') || '0');
-      const oldSickLeaveValue = parseFloat(existingSlip.sickLeave?.replace(/,/g, '') || '0');
-      const newSickLeaveValue = parseFloat(slip.sickLeave?.replace(/,/g, '') || '0');
-      
-      // حساب الأرصدة الجديدة
-      let newVacationBalance = currentVacationBalance;
-      
-      // إزالة تأثير القصاصة القديمة
-      if (oldRegularLeaveValue === 0) {
-        // إذا كانت القصاصة القديمة فارغة، نطرح مكافأة الإجازات
-        newVacationBalance = newVacationBalance - regularLeaveBonus;
-      } else {
-        // إذا كانت القصاصة القديمة تحتوي على رقم، نضيف الرقم ونطرح مكافأة الإجازات
-        newVacationBalance = newVacationBalance + oldRegularLeaveValue - regularLeaveBonus;
-      }
-      
-      // إضافة تأثير القصاصة الجديدة
-      if (newRegularLeaveValue === 0) {
-        // إذا كانت القصاصة الجديدة فارغة، نضيف مكافأة الإجازات فقط
-        newVacationBalance = newVacationBalance + regularLeaveBonus;
-      } else {
-        // إذا كانت القصاصة الجديدة تحتوي على رقم، نضيف مكافأة الإجازات ثم نطرح الرقم
-        newVacationBalance = newVacationBalance + regularLeaveBonus - newRegularLeaveValue;
-      }
-      
-      let newSickLeaveBalance = currentSickLeaveBalance;
-      
-      // إزالة تأثير القصاصة القديمة
-      if (oldSickLeaveValue === 0) {
-        // إذا كانت القصاصة القديمة فارغة، نطرح مكافأة الإجازات
-        newSickLeaveBalance = newSickLeaveBalance - sickLeaveBonus;
-      } else {
-        // إذا كانت القصاصة القديمة تحتوي على رقم، نضيف الرقم ونطرح مكافأة الإجازات
-        newSickLeaveBalance = newSickLeaveBalance + oldSickLeaveValue - sickLeaveBonus;
-      }
-      
-      // إضافة تأثير القصاصة الجديدة
-      if (newSickLeaveValue === 0) {
-        // إذا كانت القصاصة الجديدة فارغة، نضيف مكافأة الإجازات فقط
-        newSickLeaveBalance = newSickLeaveBalance + sickLeaveBonus;
-      } else {
-        // إذا كانت القصاصة الجديدة تحتوي على رقم، نضيف مكافأة الإجازات ثم نطرح الرقم
-        newSickLeaveBalance = newSickLeaveBalance + sickLeaveBonus - newSickLeaveValue;
-      }
-      
-      // التأكد من أن الأرصدة لا تكون سالبة
-      newVacationBalance = Math.max(0, newVacationBalance);
-      newSickLeaveBalance = Math.max(0, newSickLeaveBalance);
-      
-      // تحديث البيانات الرئيسية
-      await updateUserData({
-        totalIncentive: updatedIncentiveTotal.toLocaleString('en-US'),
-        totalRewards: updatedRewards.toLocaleString('en-US'),
-        vacationBalance: Math.max(0, newVacationBalance).toString(),
-        sickLeaveBalance: Math.max(0, newSickLeaveBalance).toString(),
-      });
-      
-      console.log('Updated balances:', {
-        vacationBalance: newVacationBalance,
-        sickLeaveBalance: newSickLeaveBalance,
-        oldRegularLeaveValue,
-        newRegularLeaveValue,
-        oldSickLeaveValue,
-        newSickLeaveValue,
-        regularLeaveBonus,
-        sickLeaveBonus
-      });
-      
-      // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
-      if (databaseSuccess) {
-        triggerSaveToast();
-      }
-    } catch (error) {
-      console.log('Error updating incentive slip:', error);
-      console.log('Keeping local changes only due to error');
-    } finally {
       setIsSyncing(false);
+      setManualSyncing(false);
+      console.log('setIsSyncing(false) - updateIncentiveSlip');
+    } catch (error) {
+      setIsSyncing(false);
+      // لا تعيّن setManualSyncing(false) هنا حتى لا تظهر "تمت المزامنة" عند الفشل
+      console.log('Error updating incentive slip:', error);
     }
   };
 
   const deleteIncentiveSlip = async (index: number) => {
+    setManualSyncing(true);
+    setIsSyncing(true);
+    console.log('setIsSyncing(true) - deleteIncentiveSlip');
+    console.log('deleteIncentiveSlip called with index:', index);
     try {
-      setIsSyncing(true);
-      console.log('deleteIncentiveSlip called with index:', index);
-      
       const slipToDelete = incentiveSlips[index];
       console.log('slipToDelete:', slipToDelete);
       
@@ -738,74 +652,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('Database error in deleteIncentiveSlip:', dbError);
           databaseSuccess = false;
+          throw dbError;
         }
       }
       
-      // تحديث إجمالي الحوافز
-      const currentIncentiveTotal = parseFloat(userData.totalIncentive?.replace(/,/g, '') || '0');
-      const slipIncentiveValue = parseFloat(slipToDelete.totalIncentive?.replace(/,/g, '') || '0');
-      const updatedIncentiveTotal = currentIncentiveTotal - slipIncentiveValue;
-      
-      // تحديث المكافآت
-      const currentRewards = parseFloat(userData.totalRewards?.replace(/,/g, '') || '0');
-      const slipRewards = parseFloat(slipToDelete.rewards?.replace(/,/g, '') || '0');
-      const updatedRewards = currentRewards - slipRewards;
-      
-      // تحديث أرصدة الإجازات - إزالة تأثير القصاصة المحذوفة
-      const currentVacationBalance = parseInt(userData.vacationBalance) || 0;
-      const currentSickLeaveBalance = parseInt(userData.sickLeaveBalance) || 0;
-      const regularLeaveBonus = parseInt(userData.regularLeaveBonus) || 3;
-      const sickLeaveBonus = parseInt(userData.sickLeaveBonus) || 3;
-      
-      const regularLeaveValue = parseInt(slipToDelete.regularLeave) || 0;
-      const sickLeaveValue = parseInt(slipToDelete.sickLeave) || 0;
-      
-      // حساب التأثير الذي كان للقصاصة المحذوفة (عكس ما حدث عند الإضافة)
-      let vacationImpact = 0;
-      if (regularLeaveValue === 0) {
-        // إذا كانت القصاصة فارغة، نطرح مكافأة الإجازات التي تمت إضافتها
-        vacationImpact = -regularLeaveBonus;
-      } else {
-        // إذا كانت القصاصة تحتوي على رقم، نضيف الرقم ونطرح مكافأة الإجازات (عكس العملية)
-        vacationImpact = regularLeaveValue - regularLeaveBonus;
-      }
-      
-      let sickLeaveImpact = 0;
-      if (sickLeaveValue === 0) {
-        // إذا كانت القصاصة فارغة، نطرح مكافأة الإجازات التي تمت إضافتها
-        sickLeaveImpact = -sickLeaveBonus;
-      } else {
-        // إذا كانت القصاصة تحتوي على رقم، نضيف الرقم ونطرح مكافأة الإجازات (عكس العملية)
-        sickLeaveImpact = sickLeaveValue - sickLeaveBonus;
-      }
-      
-      // إزالة التأثير من الأرصدة الحالية
-      const newVacationBalance = Math.max(0, currentVacationBalance + vacationImpact);
-      const newSickLeaveBalance = Math.max(0, currentSickLeaveBalance + sickLeaveImpact);
-      
-      // تحديث البيانات
-      const updatedUserData = {
-        ...userData,
-        totalIncentive: Math.max(0, updatedIncentiveTotal).toLocaleString('en-US'),
-        totalRewards: Math.max(0, updatedRewards).toLocaleString('en-US'),
-        vacationBalance: newVacationBalance.toString(),
-        sickLeaveBalance: newSickLeaveBalance.toString()
-      };
-      
-      setUserData(updatedUserData);
-      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserData));
-      
-      console.log('deleteIncentiveSlip completed successfully');
-      console.log('Updated balances:', {
-        vacationBalance: newVacationBalance,
-        sickLeaveBalance: newSickLeaveBalance,
-        regularLeaveValue,
-        sickLeaveValue,
-        vacationImpact,
-        sickLeaveImpact,
-        regularLeaveBonus,
-        sickLeaveBonus
-      });
+      // تحديث البيانات الرئيسية بعد حذف القصاصة
+      await updateMainDataFromSlip(slipToDelete, 'remove', 'incentive');
+      // await recalculateTotalsFromSlips(updatedSlips, salarySlips, profitsSlips); // تم التعطيل
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -815,6 +668,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Error deleting incentive slip:', error);
     } finally {
       setIsSyncing(false);
+      setManualSyncing(false);
+      console.log('setIsSyncing(false) - deleteIncentiveSlip');
     }
   };
 
@@ -1190,14 +1045,98 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
           newTotal: Math.max(0, newTotal)
         });
         
+        // تحديث الإجازات المرضية والاعتيادية
+        const currentVacationBalance = parseInt(userData.vacationBalance) || 0;
+        const currentSickLeaveBalance = parseInt(userData.sickLeaveBalance) || 0;
+        const regularLeaveBonus = parseInt(userData.regularLeaveBonus) || 3;
+        const sickLeaveBonus = parseInt(userData.sickLeaveBonus) || 3;
+        
+        const regularLeaveValue = parseInt(slip.regularLeave) || 0;
+        const sickLeaveValue = parseInt(slip.sickLeave) || 0;
+        
+        let vacationImpact = 0;
+        let sickLeaveImpact = 0;
+        
+        if (operation === 'add') {
+          // عند الإضافة
+          if (regularLeaveValue === 0) {
+            // إذا كانت القصاصة فارغة، نضيف مكافأة الإجازات
+            vacationImpact = regularLeaveBonus;
+          } else {
+            // إذا كانت القصاصة تحتوي على رقم، نطرح الرقم ونضيف مكافأة الإجازات
+            vacationImpact = regularLeaveBonus - regularLeaveValue;
+          }
+          
+          if (sickLeaveValue === 0) {
+            // إذا كانت القصاصة فارغة، نضيف مكافأة الإجازات
+            sickLeaveImpact = sickLeaveBonus;
+          } else {
+            // إذا كانت القصاصة تحتوي على رقم، نطرح الرقم ونضيف مكافأة الإجازات
+            sickLeaveImpact = sickLeaveBonus - sickLeaveValue;
+          }
+        } else {
+          // عند الحذف - عكس العملية
+          if (regularLeaveValue === 0) {
+            // إذا كانت القصاصة فارغة، نطرح مكافأة الإجازات التي تمت إضافتها
+            vacationImpact = -regularLeaveBonus;
+          } else {
+            // إذا كانت القصاصة تحتوي على رقم، نضيف الرقم ونطرح مكافأة الإجازات
+            vacationImpact = regularLeaveValue - regularLeaveBonus;
+          }
+          
+          if (sickLeaveValue === 0) {
+            // إذا كانت القصاصة فارغة، نطرح مكافأة الإجازات التي تمت إضافتها
+            sickLeaveImpact = -sickLeaveBonus;
+          } else {
+            // إذا كانت القصاصة تحتوي على رقم، نضيف الرقم ونطرح مكافأة الإجازات
+            sickLeaveImpact = sickLeaveValue - sickLeaveBonus;
+          }
+        }
+        
+        const newVacationBalance = Math.max(0, currentVacationBalance + vacationImpact);
+        const newSickLeaveBalance = Math.max(0, currentSickLeaveBalance + sickLeaveImpact);
+        
+        console.log('Leave balance calculation:', {
+          currentVacationBalance,
+          currentSickLeaveBalance,
+          regularLeaveValue,
+          sickLeaveValue,
+          vacationImpact,
+          sickLeaveImpact,
+          newVacationBalance,
+          newSickLeaveBalance,
+          operation
+        });
+        
+        // تحديث المكافآت من قصاصات الحافز
+        const currentRewards = parseFloat(userData.totalRewards?.replace(/,/g, '') || '0');
+        const slipRewards = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
+        const newRewards = operation === 'add' ? currentRewards + slipRewards : currentRewards - slipRewards;
+        
+        console.log('Incentive rewards calculation:', {
+          currentRewards,
+          slipRewards,
+          operation,
+          newRewards: Math.max(0, newRewards)
+        });
+        
         // تحديث مباشر للـ state
         setUserData(prev => ({
           ...prev,
-          totalIncentive: formatNumber(Math.max(0, newTotal))
+          totalIncentive: formatNumber(Math.max(0, newTotal)),
+          totalRewards: formatNumber(Math.max(0, newRewards)),
+          vacationBalance: newVacationBalance.toString(),
+          sickLeaveBalance: newSickLeaveBalance.toString()
         }));
         
         // حفظ في التخزين المحلي
-        const newUserData = { ...userData, totalIncentive: formatNumber(Math.max(0, newTotal)) };
+        const newUserData = { 
+          ...userData, 
+          totalIncentive: formatNumber(Math.max(0, newTotal)),
+          totalRewards: formatNumber(Math.max(0, newRewards)),
+          vacationBalance: newVacationBalance.toString(),
+          sickLeaveBalance: newSickLeaveBalance.toString()
+        };
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newUserData));
         
       } else if (type === 'salary') {
@@ -2234,6 +2173,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       showSaveToast,
       triggerSaveToast,
       isSyncing,
+      manualSyncing,
       incentiveSlips,
       addIncentiveSlip,
       updateIncentiveSlip,
