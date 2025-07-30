@@ -159,23 +159,31 @@ function CustomTabBar() {
 
       {/* FAB Button with White Circle */}
       <View style={styles.fabContainer}>
-        {/* تم حذف القوس الأبيض */}
-        <View style={styles.fabWhiteCircle}>
-          <TouchableOpacity style={styles.fab} onPress={handleFabPress}>
-            <Animated.View
-              style={{
-                transform: [{
-                  rotate: rotateAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['0deg', '45deg']
-                  })
-                }]
-              }}
-            >
-              <Ionicons name="add" size={32} color="#fff" />
-            </Animated.View>
-          </TouchableOpacity>
-        </View>
+        {/* الحلقة البيضاء - تختفي عند فتح القائمة */}
+        <Animated.View 
+          style={[
+            styles.fabWhiteCircle,
+            {
+              opacity: showFabMenu ? 0 : 1,
+            }
+          ]}
+        />
+        
+        {/* الزر البنفسجي - يبقى ظاهراً دائماً */}
+        <TouchableOpacity style={styles.fab} onPress={handleFabPress}>
+          <Animated.View
+            style={{
+              transform: [{
+                rotate: rotateAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0deg', '45deg']
+                })
+              }]
+            }}
+          >
+            <Ionicons name="add" size={32} color="#fff" />
+          </Animated.View>
+        </TouchableOpacity>
       </View>
 
       {/* Overlay */}
@@ -246,7 +254,7 @@ export default function TabLayout() {
             paddingBottom: 2,
             paddingTop: 2,
             height: 65,
-            elevation: 8,
+            elevation: 5,
             shadowColor: '#000',
             shadowOffset: { width: 0, height: -2 },
             shadowOpacity: 0.1,
@@ -331,16 +339,16 @@ const styles = StyleSheet.create({
   },
   fabContainer: {
     position: 'absolute',
-    bottom: 35,
+    bottom: 20,
     left: '50%',
-    marginLeft: -32,
+    marginLeft: -35,
     zIndex: 1001,
     // overflow: 'visible',
   },
   fabWhiteCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: '#FFFFFF',
     justifyContent: 'center',
     alignItems: 'center',
@@ -352,7 +360,11 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: '#FFFFFF',
   },
+
   fab: {
+    position: 'absolute',
+    top: 7,
+    left: 7,
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -370,7 +382,7 @@ const styles = StyleSheet.create({
     bottom: 110,
     left: '50%',
     marginLeft: -80,
-    zIndex: 1000,
+    zIndex: 1002,
     alignItems: 'center',
   },
   fabMenuItem: {
@@ -457,13 +469,11 @@ const styles = StyleSheet.create({
   },
   topHeader: {
     backgroundColor: '#6B46C1',
-    paddingBottom: 16, // زيادة بسيطة
-    paddingTop: 10, // زيادة بسيطة
+    paddingBottom: 8, // تقليل ارتفاع الشريط
+    paddingTop: 4,
     paddingHorizontal: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    // borderBottomLeftRadius: 20, // إزالة الحواف المستديرة
-    // borderBottomRightRadius: 20, // إزالة الحواف المستديرة
     elevation: 5,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -473,23 +483,30 @@ const styles = StyleSheet.create({
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
     width: '100%',
     paddingHorizontal: 20,
     position: 'relative',
-    // height: '100%', // إزالة هذا السطر
+    height: 50,
   },
   headerTitle: {
     fontSize: 18,
     fontFamily: 'Cairo-Bold',
     color: '#FFFFFF',
     textAlign: 'center',
-    // flex: 1, // إزالة هذا السطر
-    // textAlignVertical: 'center', // إزالة هذا السطر
+    marginTop: 16,
+    flex: 1,
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
   syncContainer: {
     position: 'absolute',
-    right: 0,
+    right: 5,
+    top: '60%',
+    transform: [{ translateY: -10 }],
+  },
+  spacer: {
+    flex: 1,
   },
   fabHalfCircle: {
     position: 'absolute',

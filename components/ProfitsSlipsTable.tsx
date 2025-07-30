@@ -29,27 +29,38 @@ export default function ProfitsSlipsTable({ visible, onClose }: ProfitsSlipsTabl
   const handleDelete = (index: number) => {
     console.log('handleDelete called with index:', index);
     
-    // محاولة استخدام Alert أولاً
-    try {
-      Alert.alert(
-        'تأكيد الحذف',
-        'هل أنت متأكد من حذف هذه القصاصة؟',
-        [
-          { text: 'إلغاء', style: 'cancel' },
-          { 
-            text: 'حذف', 
-            style: 'destructive',
-            onPress: () => {
-              console.log('Delete confirmed, calling deleteProfitsSlip with index:', index);
-              deleteProfitsSlip(index);
+    // استخدام confirm للويب و Alert للموبايل
+    const isWeb = typeof window !== 'undefined' && window.document;
+    
+    if (isWeb) {
+      // للويب
+      const confirmed = window.confirm('هل أنت متأكد من حذف هذه القصاصة؟');
+      if (confirmed) {
+        console.log('Delete confirmed, calling deleteProfitsSlip with index:', index);
+        deleteProfitsSlip(index);
+      }
+    } else {
+      // للموبايل
+      try {
+        Alert.alert(
+          'تأكيد الحذف',
+          'هل أنت متأكد من حذف هذه القصاصة؟',
+          [
+            { text: 'إلغاء', style: 'cancel' },
+            { 
+              text: 'حذف', 
+              style: 'destructive',
+              onPress: () => {
+                console.log('Delete confirmed, calling deleteProfitsSlip with index:', index);
+                deleteProfitsSlip(index);
+              }
             }
-          }
-        ]
-      );
-    } catch (error) {
-      console.log('Alert failed, proceeding with direct delete:', error);
-      // إذا فشل Alert، نستمر بالحذف مباشرة
-      deleteProfitsSlip(index);
+          ]
+        );
+      } catch (error) {
+        console.log('Alert failed, proceeding with direct delete:', error);
+        deleteProfitsSlip(index);
+      }
     }
   };
 

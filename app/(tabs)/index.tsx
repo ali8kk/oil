@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Eye, EyeOff, BookOpen } from 'lucide-react-native';
 import { useState, useEffect } from 'react';
@@ -140,34 +140,33 @@ function CourseCheckbox({ courseName, isCompleted, onToggle }: CourseCheckboxPro
 }
 
 export default function PersonalInfoScreen() {
-  const { userData, calculateServiceDuration, calculateServiceDays, getCurrentFiscalYear, checkAndResetRewards, updateCourseCompletion, isLoading, showSaveToast, isSyncing, salarySlips, incentiveSlips } = useUserData();
+  const { userData, calculateServiceDuration, calculateServiceDays, getCurrentFiscalYear, checkAndResetRewards, updateCourseCompletion, isLoading, showSaveToast, isSyncing, salarySlips, incentiveSlips, manualSyncing, isConnectedToDatabase, setManualSyncing } = useUserData();
   const [isRewardsHidden, setIsRewardsHidden] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
+
+
 
   const serviceDays = calculateServiceDays(userData.startDate);
 
   // حساب إجمالي المكافآت من القصاصات الفعلية
-  const calculateTotalRewards = () => {
-    const totalBonusValue = salarySlips.reduce((total, slip) => {
-      return total + (parseFloat(slip.bonus?.replace(/,/g, '') || '0'));
-    }, 0);
-    
-    const totalRewardsValue = incentiveSlips.reduce((total, slip) => {
-      return total + (parseFloat(slip.rewards?.replace(/,/g, '') || '0'));
-    }, 0);
-    
-    return totalBonusValue + totalRewardsValue;
+
+
+  // دالة لتنسيق الأرقام الصحيحة (للمكافآت الكلية)
+  const formatInteger = (num: string) => {
+    if (!num) return 'غير محدد';
+    const cleanNum = num.replace(/,/g, '');
+    const intNum = Math.round(parseFloat(cleanNum));
+    if (isNaN(intNum)) return 'غير محدد';
+    return intNum.toLocaleString('en-US');
   };
 
-  const totalRewards = calculateTotalRewards();
-
-  // دالة لتنسيق الأرقام بالفواصل
-  const formatNumber = (num: string) => {
+  // دالة لتنسيق الأرقام العشرية (لرصيد المرضية)
+  const formatDecimal = (num: string) => {
     if (!num) return 'غير محدد';
-    // إزالة الفواصل الموجودة أولاً
     const cleanNum = num.replace(/,/g, '');
-    // إضافة الفواصل كل ثلاث أرقام
-    return cleanNum.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    const floatNum = parseFloat(cleanNum);
+    if (isNaN(floatNum)) return 'غير محدد';
+    return floatNum.toLocaleString('en-US', { minimumFractionDigits: 1, maximumFractionDigits: 2 });
   };
 
   // إعادة تحديث البيانات عند التركيز على الصفحة
@@ -210,7 +209,7 @@ export default function PersonalInfoScreen() {
           <InfoRow label="الاسم" value={userData.name} />
           <InfoRow label="رقم الحاسبة" value={userData.computerId} />
           <InfoRow label="رصيد الإجازات" value={userData.vacationBalance ? `${userData.vacationBalance} يوم` : 'غير محدد'} />
-          <InfoRow label="رصيد المرضية" value={userData.sickLeaveBalance ? `${userData.sickLeaveBalance} يوم` : 'غير محدد'} />
+          <InfoRow label="رصيد المرضية" value={userData.sickLeaveBalance ? `${formatDecimal(userData.sickLeaveBalance)} يوم` : 'غير محدد'} />
           <InfoRow label="الترقية القادمة" value={userData.nextPromotionDate} />
           <InfoRow label="العلاوة القادمة" value={userData.nextAllowanceDate} />
           <InfoRow 
@@ -222,7 +221,7 @@ export default function PersonalInfoScreen() {
           <InfoRow label="عدد أيام الخدمة" value={serviceDays > 0 ? `${serviceDays} يوم` : 'غير محدد'} />
           <SmallLabelInfoRow 
             label={`مكافآت سنة ${fiscalYear}`}
-            value={totalRewards > 0 ? `${formatNumber(totalRewards.toString())} دينار` : 'غير محدد'}
+            value={userData.totalRewards && parseFloat(userData.totalRewards) > 0 ? `${formatInteger(userData.totalRewards)} دينار` : 'غير محدد'}
             isHidden={isRewardsHidden}
             onToggleVisibility={() => setIsRewardsHidden(!isRewardsHidden)}
             isRewardsRow={true}

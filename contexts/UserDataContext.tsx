@@ -44,11 +44,17 @@ interface UserDataContextType {
   // Sync loading state
   isSyncing: boolean;
   manualSyncing: boolean;
+  syncError: boolean;
+  setManualSyncing: React.Dispatch<React.SetStateAction<boolean>>;
+  setSyncError: React.Dispatch<React.SetStateAction<boolean>>;
   // Database functions
   linkToDatabase: (computerId: string, password: string) => Promise<{ success: boolean; message: string }>;
-  unlinkFromDatabase: () => Promise<{ success: boolean; message: string }>;
+  logoutFromDatabase: () => Promise<{ success: boolean; message: string }>;
   syncToDatabase: () => Promise<{ success: boolean; message: string }>;
   saveToDatabase: () => Promise<{ success: boolean; message: string }>;
+  // Auth functions
+  loginUser: (computerId: string, password: string) => Promise<{ success: boolean; message: string }>;
+  registerUser: (computerId: string, password: string) => Promise<{ success: boolean; message: string }>;
   // Incentive slips
   incentiveSlips: (IncentiveData & { id?: number })[];
   addIncentiveSlip: (slip: IncentiveData) => Promise<void>;
@@ -77,6 +83,10 @@ interface UserDataContextType {
   syncPendingLocalData: () => Promise<void>;
   cleanupDuplicateSlips: () => Promise<void>;
   handleDatabaseError: (error: any, operation: string, slipData: any, index?: number) => Promise<boolean>;
+  // دوال المكافآت الجديدة
+  calculateRewardsForYear: (year: string) => number;
+  updateCurrentYearRewards: () => Promise<void>;
+  updateBaseRewards: (newBaseRewards: string) => Promise<void>;
 }
 
 const defaultUserData: UserData = {
@@ -87,19 +97,22 @@ const defaultUserData: UserData = {
   sickLeaveBalance: '',
   nextPromotionDate: '',
   nextAllowanceDate: '',
-  totalRewards: '',
+  totalRewards: '0',
   startDate: '',
   totalIncentive: '',
   totalSalary: '',
   totalProfits: '',
   lastRewardsResetDate: '',
   regularLeaveBonus: '3',
-  sickLeaveBonus: '3',
+  sickLeaveBonus: '2.5',
   grade: '10',
   stage: '1',
   coursesNames: ['سلامة', 'حاسوب', 'اختصاص', 'إدارية'],
   coursesCompleted: [false, false, false, false]
 };
+
+// متغير منفصل لتخزين القيمة الأساسية للمكافآت
+const BASE_REWARDS_KEY = '@base_rewards';
 
 const STORAGE_KEY = '@user_data';
 const INCENTIVE_SLIPS_KEY = '@incentive_slips';
@@ -122,10 +135,12 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const [showSaveToast, setShowSaveToast] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
   const [manualSyncing, setManualSyncing] = useState(false);
+  const [syncError, setSyncError] = useState(false);
   const [hasError, setHasError] = useState(false);
 
   // تحميل البيانات من التخزين المحلي عند بدء التطبيق
   useEffect(() => {
+    console.log('useEffect - تحميل البيانات من التخزين المحلي عند بدء التطبيق');
     loadAllData().catch((error) => {
       console.error('Error in loadAllData:', error);
       setHasError(true);
@@ -135,8 +150,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
   // تحميل البيانات من قاعدة البيانات عند الاتصال
   useEffect(() => {
+    console.log('useEffect - تحميل البيانات من قاعدة البيانات:', {
+      currentUserId,
+      isConnectedToDatabase,
+      isNewConnection
+    });
+    
     // فقط نحمل البيانات إذا كان المستخدم متصل وهذا ليس اتصال جديد
     if (currentUserId && isConnectedToDatabase && !isNewConnection) {
+      console.log('useEffect - استدعاء loadFromDatabase');
       loadFromDatabase();
     }
   }, [currentUserId, isConnectedToDatabase]);
@@ -152,9 +174,24 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await loadSalarySlips();
       await loadProfitsSlips();
       
+      // تحميل القيمة الأساسية للمكافآت
+      const baseRewardsString = await AsyncStorage.getItem(BASE_REWARDS_KEY);
+      console.log('loadAllData - القيمة الأساسية من التخزين:', baseRewardsString);
+      
+      // إعادة تعيين القيمة الأساسية إلى 0 للمستخدمين الجدد أو إذا كانت القيمة غير صحيحة
+      if (!baseRewardsString || baseRewardsString === '250' || baseRewardsString === '250.0' || baseRewardsString === '250,000') {
+        await AsyncStorage.setItem(BASE_REWARDS_KEY, '0');
+        console.log('تم إعادة تعيين القيمة الأساسية للمكافآت إلى: 0');
+      } else {
+        console.log('القيمة الأساسية للمكافآت موجودة:', baseRewardsString);
+      }
+      
       // التحقق من التواريخ وتحديثها بعد تحميل البيانات المحلية
       await checkAndUpdateAllowanceDate();
       await checkAndUpdatePromotionDate();
+      
+      // تحديث المكافآت الكلية بعد تحميل جميع البيانات
+      await updateCurrentYearRewards();
       
       console.log('All data loaded successfully');
     } catch (error) {
@@ -170,9 +207,21 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const storedData = await AsyncStorage.getItem(STORAGE_KEY);
       if (storedData) {
         const parsedData = JSON.parse(storedData);
+        console.log('loadUserData - البيانات من التخزين المحلي:', {
+          vacationBalance: parsedData.vacationBalance,
+          sickLeaveBalance: parsedData.sickLeaveBalance
+        });
+        
         // التأكد من وجود الحقول الجديدة
-        setUserData({ ...defaultUserData, ...parsedData });
-        console.log('User data loaded successfully');
+        const updatedData = { ...defaultUserData, ...parsedData };
+        
+        // إعادة تعيين totalRewards إلى 0 إذا كانت القيمة غير صحيحة
+        if (!updatedData.totalRewards || updatedData.totalRewards === '250' || updatedData.totalRewards === '250.0' || updatedData.totalRewards === '250,000') {
+          updatedData.totalRewards = '0';
+        }
+        
+        setUserData(updatedData);
+        console.log('loadUserData - تم تحديث البيانات من التخزين المحلي');
       } else {
         console.log('No stored user data found, using defaults');
       }
@@ -269,6 +318,12 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       // جلب بيانات المستخدم
       const user = await databaseService.getUserById(currentUserId);
       if (user) {
+        console.log('loadFromDatabase - البيانات من قاعدة البيانات:', {
+          vacationBalance: user.vacation_balance,
+          sickLeaveBalance: user.sick_leave_balance,
+          totalRewards: user.total_rewards
+        });
+        
         const newUserData: UserData = {
           name: user.name,
           computerId: user.computer_id,
@@ -291,9 +346,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
           coursesCompleted: user.courses_completed,
         };
         
+        console.log('loadFromDatabase - الأرصدة الحالية قبل التحديث:', {
+          vacationBalance: userData.vacationBalance,
+          sickLeaveBalance: userData.sickLeaveBalance
+        });
+        
         setUserData(newUserData);
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newUserData));
-        console.log('User data loaded from database');
+        console.log('loadFromDatabase - تم تحديث البيانات من قاعدة البيانات');
       }
       
       // جلب قصاصات الحوافز
@@ -416,8 +476,20 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
 
     const updateUserData = async (data: Partial<UserData>) => {
     try {
+      console.log('updateUserData - البيانات المراد تحديثها:', data);
+      console.log('updateUserData - الأرصدة الحالية قبل التحديث:', {
+        vacationBalance: userData.vacationBalance,
+        sickLeaveBalance: userData.sickLeaveBalance
+      });
+      
       setIsSyncing(true);
       let newUserData = { ...userData, ...data };
+      
+      console.log('updateUserData - الأرصدة الجديدة بعد التحديث:', {
+        vacationBalance: newUserData.vacationBalance,
+        sickLeaveBalance: newUserData.sickLeaveBalance
+      });
+      
       if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
         // حدث في قاعدة البيانات
         const dbData: any = {};
@@ -441,12 +513,21 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         if (data.computerId !== undefined) dbData.computer_id = data.computerId;
         if (data.password !== undefined) dbData.password_hash = data.password;
         if (Object.keys(dbData).length > 0) {
-          await databaseService.updateUser(currentUserId, dbData);
+                console.log('updateUserData - حفظ البيانات في قاعدة البيانات:', dbData);
+      const result = await databaseService.updateUser(currentUserId, dbData);
+      if (result === null) {
+        console.log('updateUserData - المستخدم غير موجود في قاعدة البيانات');
+        setSyncError(true);
+        setTimeout(() => setSyncError(false), 3000);
+      } else {
+        console.log('updateUserData - تم حفظ البيانات في قاعدة البيانات بنجاح');
+      }
         }
       }
       setUserData(newUserData);
       try {
         await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(newUserData));
+        console.log('updateUserData - تم حفظ البيانات في التخزين المحلي');
       } catch (error) {
         console.log('Error saving user data locally:', error);
       }
@@ -484,16 +565,31 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             rating: slip.rating || 'متوسط'
           });
           
-          // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
-          const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
-          const finalUpdatedSlips = [...incentiveSlips, finalSlip];
-          setIncentiveSlips(finalUpdatedSlips);
-          await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
-          
-          console.log('addIncentiveSlip: created slip with database id', savedSlip?.id);
+          if (savedSlip === null) {
+            console.log('addIncentiveSlip - فشل في حفظ القصاصة في قاعدة البيانات');
+            databaseSuccess = false;
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+            
+            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
+            const localSlip = { ...slip, id: Date.now() };
+            const localUpdatedSlips = [...incentiveSlips, localSlip];
+            setIncentiveSlips(localUpdatedSlips);
+            await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
+          } else {
+            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
+            const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
+            const finalUpdatedSlips = [...incentiveSlips, finalSlip];
+            setIncentiveSlips(finalUpdatedSlips);
+            await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
+            
+            console.log('addIncentiveSlip: created slip with database id', savedSlip?.id);
+          }
         } catch (dbError) {
           console.log('Database error in addIncentiveSlip:', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
           // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
           const localSlip = { ...slip, id: Date.now() };
           const localUpdatedSlips = [...incentiveSlips, localSlip];
@@ -514,28 +610,34 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       const slipIncentiveValue = parseFloat(slip.totalIncentive?.replace(/,/g, '') || '0');
       const newIncentiveTotal = currentIncentiveTotal + slipIncentiveValue;
       
-      // تحديث المكافآت
-      const currentRewards = parseFloat(userData.totalRewards?.replace(/,/g, '') || '0');
-      const slipRewards = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
-      const newRewards = currentRewards + slipRewards;
-      
       // تحديث أرصدة الإجازات
       const currentVacationBalance = parseInt(userData.vacationBalance) || 0;
-      const currentSickLeaveBalance = parseInt(userData.sickLeaveBalance) || 0;
+      const currentSickLeaveBalance = parseFloat(userData.sickLeaveBalance) || 0;
       const regularLeaveBonus = parseInt(userData.regularLeaveBonus) || 3;
-      const sickLeaveBonus = parseInt(userData.sickLeaveBonus) || 3;
+      const sickLeaveBonus = parseFloat(userData.sickLeaveBonus) || 2.5;
       
       const regularLeaveValue = parseInt(slip.regularLeave) || 0;
       const sickLeaveValue = parseInt(slip.sickLeave) || 0;
+      
+      console.log('addIncentiveSlip - أرصدة الإجازات:', {
+        currentVacationBalance,
+        currentSickLeaveBalance,
+        regularLeaveBonus,
+        sickLeaveBonus,
+        regularLeaveValue,
+        sickLeaveValue
+      });
       
       // حساب رصيد الإجازات الاعتيادية الجديد
       let newVacationBalance = currentVacationBalance;
       if (regularLeaveValue === 0) {
         // إذا كان الحقل فارغ أو 0، نضيف مكافأة الإجازات فقط
         newVacationBalance = currentVacationBalance + regularLeaveBonus;
+        console.log('addIncentiveSlip - إضافة مكافأة الإجازات الاعتيادية فقط:', { newVacationBalance });
       } else {
         // إذا كان هناك رقم، نضيف مكافأة الإجازات ثم نطرح الرقم المدخل
         newVacationBalance = currentVacationBalance + regularLeaveBonus - regularLeaveValue;
+        console.log('addIncentiveSlip - إضافة مكافأة وطرح الإجازات المستخدمة:', { newVacationBalance });
       }
       
       // حساب رصيد الإجازات المرضية الجديد
@@ -543,26 +645,73 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       if (sickLeaveValue === 0) {
         // إذا كان الحقل فارغ أو 0، نضيف مكافأة الإجازات فقط
         newSickLeaveBalance = currentSickLeaveBalance + sickLeaveBonus;
+        console.log('addIncentiveSlip - إضافة مكافأة الإجازات المرضية فقط:', { newSickLeaveBalance });
       } else {
         // إذا كان هناك رقم، نضيف مكافأة الإجازات ثم نطرح الرقم المدخل
         newSickLeaveBalance = currentSickLeaveBalance + sickLeaveBonus - sickLeaveValue;
+        console.log('addIncentiveSlip - إضافة مكافأة وطرح الإجازات المرضية المستخدمة:', { newSickLeaveBalance });
       }
       
       // التأكد من أن الأرصدة لا تكون سالبة
       newVacationBalance = Math.max(0, newVacationBalance);
       newSickLeaveBalance = Math.max(0, newSickLeaveBalance);
       
+      console.log('addIncentiveSlip - الأرصدة النهائية:', {
+        newVacationBalance,
+        newSickLeaveBalance
+      });
+      
       // تحديث البيانات
       const updatedUserData = {
         ...userData,
         totalIncentive: newIncentiveTotal.toLocaleString('en-US'),
-        totalRewards: newRewards.toLocaleString('en-US'),
         vacationBalance: newVacationBalance.toString(),
         sickLeaveBalance: newSickLeaveBalance.toString()
       };
       
+      console.log('addIncentiveSlip - تحديث البيانات:', {
+        oldVacationBalance: userData.vacationBalance,
+        newVacationBalance: newVacationBalance.toString(),
+        oldSickLeaveBalance: userData.sickLeaveBalance,
+        newSickLeaveBalance: newSickLeaveBalance.toString()
+      });
+      
       setUserData(updatedUserData);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserData));
+      
+      // حفظ الأرصدة في قاعدة البيانات
+      if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
+        try {
+          const result = await databaseService.updateUser(currentUserId, {
+            vacation_balance: newVacationBalance.toString(),
+            sick_leave_balance: newSickLeaveBalance.toString()
+          });
+          if (result === null) {
+            console.log('addIncentiveSlip - المستخدم غير موجود في قاعدة البيانات');
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+          } else {
+            console.log('addIncentiveSlip - تم حفظ الأرصدة في قاعدة البيانات');
+          }
+        } catch (error) {
+          console.log('Error saving balances to database:', error);
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
+        }
+      }
+      
+      console.log('addIncentiveSlip - تم حفظ البيانات في التخزين المحلي');
+      
+      // تحديث المكافآت بناءً على النظام الجديد
+      console.log('addIncentiveSlip - قبل updateCurrentYearRewards');
+      await updateCurrentYearRewards();
+      console.log('addIncentiveSlip - بعد updateCurrentYearRewards');
+      
+      // التحقق من الأرصدة بعد updateCurrentYearRewards
+      console.log('addIncentiveSlip - الأرصدة بعد updateCurrentYearRewards:', {
+        vacationBalance: userData.vacationBalance,
+        sickLeaveBalance: userData.sickLeaveBalance
+      });
       
       console.log('addIncentiveSlip completed successfully');
       console.log('Updated balances:', {
@@ -572,6 +721,12 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         sickLeaveValue,
         regularLeaveBonus,
         sickLeaveBonus
+      });
+      
+      // التحقق النهائي من الأرصدة
+      console.log('addIncentiveSlip - الأرصدة النهائية بعد اكتمال العملية:', {
+        vacationBalance: userData.vacationBalance,
+        sickLeaveBalance: userData.sickLeaveBalance
       });
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
@@ -584,8 +739,17 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Error adding incentive slip:', error);
     } finally {
       setIsSyncing(false);
-      setManualSyncing(false);
-      console.log('setIsSyncing(false) - addIncentiveSlip');
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+        console.log('setIsSyncing(false) - addIncentiveSlip');
+        
+        // التحقق من الأرصدة بعد إعادة تعيين المزامنة
+        console.log('addIncentiveSlip - الأرصدة بعد إعادة تعيين المزامنة:', {
+          vacationBalance: userData.vacationBalance,
+          sickLeaveBalance: userData.sickLeaveBalance
+        });
+      }, 1500);
     }
   };
 
@@ -618,11 +782,133 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('Database error in updateIncentiveSlip:', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
           throw dbError;
         }
       }
+      
+      // تحديث الأرصدة عند تعديل القصاصة
+      const currentVacationBalance = parseInt(userData.vacationBalance) || 0;
+      const currentSickLeaveBalance = parseFloat(userData.sickLeaveBalance) || 0;
+      const regularLeaveBonus = parseInt(userData.regularLeaveBonus) || 3;
+      const sickLeaveBonus = parseFloat(userData.sickLeaveBonus) || 2.5;
+      
+      // القيم القديمة من القصاصة الموجودة
+      const oldRegularLeaveValue = parseInt(existingSlip.regularLeave) || 0;
+      const oldSickLeaveValue = parseInt(existingSlip.sickLeave) || 0;
+      
+      // القيم الجديدة من القصاصة المحدثة
+      const newRegularLeaveValue = parseInt(slip.regularLeave) || 0;
+      const newSickLeaveValue = parseInt(slip.sickLeave) || 0;
+      
+      console.log('updateIncentiveSlip - أرصدة الإجازات:', {
+        currentVacationBalance,
+        currentSickLeaveBalance,
+        regularLeaveBonus,
+        sickLeaveBonus,
+        oldRegularLeaveValue,
+        oldSickLeaveValue,
+        newRegularLeaveValue,
+        newSickLeaveValue
+      });
+      
+      // حساب رصيد الإجازات الاعتيادية الجديد
+      let newVacationBalance = currentVacationBalance;
+      
+      // طرح التأثير القديم
+      if (oldRegularLeaveValue === 0) {
+        newVacationBalance -= regularLeaveBonus;
+      } else {
+        newVacationBalance = newVacationBalance - regularLeaveBonus + oldRegularLeaveValue;
+      }
+      
+      // إضافة التأثير الجديد
+      if (newRegularLeaveValue === 0) {
+        newVacationBalance += regularLeaveBonus;
+      } else {
+        newVacationBalance = newVacationBalance + regularLeaveBonus - newRegularLeaveValue;
+      }
+      
+      // حساب رصيد الإجازات المرضية الجديد
+      let newSickLeaveBalance = currentSickLeaveBalance;
+      
+      // طرح التأثير القديم
+      if (oldSickLeaveValue === 0) {
+        newSickLeaveBalance -= sickLeaveBonus;
+      } else {
+        newSickLeaveBalance = newSickLeaveBalance - sickLeaveBonus + oldSickLeaveValue;
+      }
+      
+      // إضافة التأثير الجديد
+      if (newSickLeaveValue === 0) {
+        newSickLeaveBalance += sickLeaveBonus;
+      } else {
+        newSickLeaveBalance = newSickLeaveBalance + sickLeaveBonus - newSickLeaveValue;
+      }
+      
+      // التأكد من أن الأرصدة لا تكون سالبة
+      newVacationBalance = Math.max(0, newVacationBalance);
+      newSickLeaveBalance = Math.max(0, newSickLeaveBalance);
+      
+      console.log('updateIncentiveSlip - الأرصدة الجديدة:', {
+        newVacationBalance,
+        newSickLeaveBalance
+      });
+      
+      // تحديث البيانات
+      const updatedUserData = {
+        ...userData,
+        vacationBalance: newVacationBalance.toString(),
+        sickLeaveBalance: newSickLeaveBalance.toString()
+      };
+      
+      console.log('updateIncentiveSlip - تحديث البيانات:', {
+        oldVacationBalance: userData.vacationBalance,
+        newVacationBalance: newVacationBalance.toString(),
+        oldSickLeaveBalance: userData.sickLeaveBalance,
+        newSickLeaveBalance: newSickLeaveBalance.toString()
+      });
+      
+      setUserData(updatedUserData);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserData));
+      
+      // حفظ الأرصدة في قاعدة البيانات
+      if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
+        try {
+          const result = await databaseService.updateUser(currentUserId, {
+            vacation_balance: newVacationBalance.toString(),
+            sick_leave_balance: newSickLeaveBalance.toString()
+          });
+          if (result === null) {
+            console.log('updateIncentiveSlip - المستخدم غير موجود في قاعدة البيانات');
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+          } else {
+            console.log('updateIncentiveSlip - تم حفظ الأرصدة في قاعدة البيانات');
+          }
+        } catch (error) {
+          console.log('Error saving balances to database:', error);
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
+        }
+      }
+      
+      console.log('updateIncentiveSlip - تم حفظ البيانات في التخزين المحلي');
+      
+      // تحديث المكافآت بناءً على النظام الجديد
+      await updateCurrentYearRewards();
+      
+      // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
+      if (databaseSuccess) {
+        triggerSaveToast();
+      }
+      
       setIsSyncing(false);
-      setManualSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
       console.log('setIsSyncing(false) - updateIncentiveSlip');
     } catch (error) {
       setIsSyncing(false);
@@ -652,13 +938,166 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('Database error in deleteIncentiveSlip:', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
           throw dbError;
         }
       }
       
-      // تحديث البيانات الرئيسية بعد حذف القصاصة
-      await updateMainDataFromSlip(slipToDelete, 'remove', 'incentive');
-      // await recalculateTotalsFromSlips(updatedSlips, salarySlips, profitsSlips); // تم التعطيل
+      // تحديث الأرصدة عند حذف القصاصة
+      const currentVacationBalance = parseInt(userData.vacationBalance) || 0;
+      const currentSickLeaveBalance = parseFloat(userData.sickLeaveBalance) || 0;
+      const regularLeaveBonus = parseInt(userData.regularLeaveBonus) || 3;
+      const sickLeaveBonus = parseFloat(userData.sickLeaveBonus) || 2.5;
+      
+      const regularLeaveValue = parseInt(slipToDelete.regularLeave) || 0;
+      const sickLeaveValue = parseInt(slipToDelete.sickLeave) || 0;
+      
+      console.log('deleteIncentiveSlip - أرصدة الإجازات:', {
+        currentVacationBalance,
+        currentSickLeaveBalance,
+        regularLeaveBonus,
+        sickLeaveBonus,
+        regularLeaveValue,
+        sickLeaveValue
+      });
+      
+      // حساب رصيد الإجازات الاعتيادية الجديد (عكس الإضافة)
+      let newVacationBalance = currentVacationBalance;
+      if (regularLeaveValue === 0) {
+        // إذا كان الحقل فارغ أو 0، نطرح مكافأة الإجازات فقط
+        newVacationBalance = currentVacationBalance - regularLeaveBonus;
+      } else {
+        // إذا كان هناك رقم، نطرح مكافأة الإجازات ثم نضيف الرقم المدخل
+        newVacationBalance = currentVacationBalance - regularLeaveBonus + regularLeaveValue;
+      }
+      
+      // حساب رصيد الإجازات المرضية الجديد (عكس الإضافة)
+      let newSickLeaveBalance = currentSickLeaveBalance;
+      if (sickLeaveValue === 0) {
+        // إذا كان الحقل فارغ أو 0، نطرح مكافأة الإجازات فقط
+        newSickLeaveBalance = currentSickLeaveBalance - sickLeaveBonus;
+      } else {
+        // إذا كان هناك رقم، نطرح مكافأة الإجازات ثم نضيف الرقم المدخل
+        newSickLeaveBalance = currentSickLeaveBalance - sickLeaveBonus + sickLeaveValue;
+      }
+      
+      // التأكد من أن الأرصدة لا تكون سالبة
+      newVacationBalance = Math.max(0, newVacationBalance);
+      newSickLeaveBalance = Math.max(0, newSickLeaveBalance);
+      
+      console.log('deleteIncentiveSlip - الأرصدة الجديدة:', {
+        newVacationBalance,
+        newSickLeaveBalance
+      });
+      
+      // تحديث البيانات
+      const updatedUserData = {
+        ...userData,
+        vacationBalance: newVacationBalance.toString(),
+        sickLeaveBalance: newSickLeaveBalance.toString()
+      };
+      
+      console.log('deleteIncentiveSlip - تحديث البيانات:', {
+        oldVacationBalance: userData.vacationBalance,
+        newVacationBalance: newVacationBalance.toString(),
+        oldSickLeaveBalance: userData.sickLeaveBalance,
+        newSickLeaveBalance: newSickLeaveBalance.toString()
+      });
+      
+      setUserData(updatedUserData);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserData));
+      
+      // حفظ الأرصدة في قاعدة البيانات
+      if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
+        try {
+          const result = await databaseService.updateUser(currentUserId, {
+            vacation_balance: newVacationBalance.toString(),
+            sick_leave_balance: newSickLeaveBalance.toString()
+          });
+          if (result === null) {
+            console.log('deleteIncentiveSlip - المستخدم غير موجود في قاعدة البيانات');
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+          } else {
+            console.log('deleteIncentiveSlip - تم حفظ الأرصدة في قاعدة البيانات');
+          }
+        } catch (error) {
+          console.log('Error saving balances to database:', error);
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
+        }
+      }
+      
+      console.log('deleteIncentiveSlip - تم حفظ البيانات في التخزين المحلي');
+      
+      // تحديث المكافآت بناءً على النظام الجديد
+      // استخدام القصاصات المحدثة مباشرة بدلاً من قراءتها من AsyncStorage
+      const currentYear = getCurrentFiscalYear();
+      console.log(`deleteIncentiveSlip - السنة المالية الحالية: ${currentYear}`);
+      
+      // حساب المكافآت من القصاصات المحدثة
+      let slipsRewards = 0;
+      
+      // جمع مكافآت قصاصات الحافز للسنة المحددة
+      updatedSlips.forEach((slip: any) => {
+        const slipYear = slip.month?.split('/')?.[1] || '';
+        if (slipYear === currentYear) {
+          const rewardValue = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
+          slipsRewards += rewardValue;
+          console.log(`Incentive slip for year ${currentYear}:`, { month: slip.month, rewards: slip.rewards, rewardValue });
+        }
+      });
+      
+      // جمع مكافآت قصاصات الراتب للسنة المحددة
+      salarySlips.forEach((slip: any) => {
+        const slipYear = slip.month?.split('/')?.[1] || '';
+        if (slipYear === currentYear) {
+          const bonusValue = parseFloat(slip.bonus?.replace(/,/g, '') || '0');
+          slipsRewards += bonusValue;
+          console.log(`Salary slip for year ${currentYear}:`, { month: slip.month, bonus: slip.bonus, bonusValue });
+        }
+      });
+      
+      console.log(`deleteIncentiveSlip - مكافآت القصاصات: ${slipsRewards}`);
+      
+      // الحصول على القيمة الأساسية من التخزين المحلي
+      const baseRewardsString = await AsyncStorage.getItem(BASE_REWARDS_KEY);
+      const baseRewards = parseFloat(baseRewardsString || '0');
+      console.log(`deleteIncentiveSlip - القيمة الأساسية: ${baseRewards}`);
+      
+      const totalRewards = baseRewards + slipsRewards;
+      console.log(`deleteIncentiveSlip - المكافآت الكلية: ${baseRewards} + ${slipsRewards} = ${totalRewards}`);
+      
+      const formatNumber = (num: number) => num.toLocaleString('en-US');
+      
+      // تحديث totalRewards
+      const updatedUserDataWithRewards = {
+        ...updatedUserData,
+        totalRewards: formatNumber(totalRewards)
+      };
+      setUserData(updatedUserDataWithRewards);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserDataWithRewards));
+      
+      // حفظ totalRewards في قاعدة البيانات
+      if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
+        try {
+          const result = await databaseService.updateUser(currentUserId, {
+            total_rewards: formatNumber(totalRewards)
+          });
+          if (result === null) {
+            console.log('deleteIncentiveSlip - المستخدم غير موجود في قاعدة البيانات');
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+          } else {
+            console.log('deleteIncentiveSlip - تم حفظ totalRewards في قاعدة البيانات');
+          }
+        } catch (error) {
+          console.log('Error updating totalRewards in database:', error);
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
+        }
+      }
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -668,12 +1107,16 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Error deleting incentive slip:', error);
     } finally {
       setIsSyncing(false);
-      setManualSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
       console.log('setIsSyncing(false) - deleteIncentiveSlip');
     }
   };
 
   const addSalarySlip = async (slip: SalaryData) => {
+    setManualSyncing(true);
     try {
       setIsSyncing(true);
       let databaseSuccess = true;
@@ -697,16 +1140,31 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             total_salary: parseFloat(slip.totalSalary.replace(/,/g, '') || '0')
           });
           
-          // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
-          const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
-          const finalUpdatedSlips = [...salarySlips, finalSlip];
-          setSalarySlips(finalUpdatedSlips);
-          await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
-          
-          console.log('addSalarySlip: created slip with database id', savedSlip?.id);
+          if (savedSlip === null) {
+            console.log('addSalarySlip - فشل في حفظ القصاصة في قاعدة البيانات');
+            databaseSuccess = false;
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+            
+            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
+            const localSlip = { ...slip, id: Date.now() };
+            const localUpdatedSlips = [...salarySlips, localSlip];
+            setSalarySlips(localUpdatedSlips);
+            await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
+          } else {
+            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
+            const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
+            const finalUpdatedSlips = [...salarySlips, finalSlip];
+            setSalarySlips(finalUpdatedSlips);
+            await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
+            
+            console.log('addSalarySlip: created slip with database id', savedSlip?.id);
+          }
         } catch (dbError) {
           console.log('Database error in addSalarySlip:', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
           
           // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
           const localSlip = { ...slip, id: Date.now() };
@@ -722,7 +1180,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
       }
       
-      await updateMainDataFromSlip(slip, 'add', 'salary');
+      // تحديث المكافآت بناءً على النظام الجديد
+      console.log('addSalarySlip - قبل updateCurrentYearRewards');
+      await updateCurrentYearRewards();
+      console.log('addSalarySlip - بعد updateCurrentYearRewards');
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -732,10 +1193,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Error adding salary slip:', error);
     } finally {
       setIsSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
     }
   };
 
   const updateSalarySlip = async (index: number, slip: SalaryData) => {
+    setManualSyncing(true);
     try {
       setIsSyncing(true);
       let databaseSuccess = true;
@@ -784,6 +1250,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('updateSalarySlip: database update failed', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
           console.log('Keeping local changes only due to database error');
         }
       } else {
@@ -794,9 +1262,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         });
       }
       
-      // طرح القيمة القديمة وإضافة القيمة الجديدة
-      await updateMainDataFromSlip(existingSlip, 'remove', 'salary');
-      await updateMainDataFromSlip(slip, 'add', 'salary');
+      // تحديث المكافآت بناءً على النظام الجديد
+      await updateCurrentYearRewards();
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -807,10 +1274,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Keeping local changes only due to error');
     } finally {
       setIsSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
     }
   };
 
   const deleteSalarySlip = async (index: number) => {
+    setManualSyncing(true);
     try {
       setIsSyncing(true);
       let databaseSuccess = true;
@@ -827,11 +1299,78 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('Database error in deleteSalarySlip:', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
         }
       }
       
-      await updateMainDataFromSlip(slipToDelete, 'remove', 'salary');
-      await recalculateTotalsFromSlips(incentiveSlips, updatedSlips, profitsSlips);
+      // تحديث المكافآت بناءً على النظام الجديد
+      // استخدام القصاصات المحدثة مباشرة بدلاً من قراءتها من AsyncStorage
+      const currentYear = getCurrentFiscalYear();
+      console.log(`deleteSalarySlip - السنة المالية الحالية: ${currentYear}`);
+      
+      // حساب المكافآت من القصاصات المحدثة
+      let slipsRewards = 0;
+      
+      // جمع مكافآت قصاصات الحافز للسنة المحددة
+      incentiveSlips.forEach((slip: any) => {
+        const slipYear = slip.month?.split('/')?.[1] || '';
+        if (slipYear === currentYear) {
+          const rewardValue = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
+          slipsRewards += rewardValue;
+          console.log(`Incentive slip for year ${currentYear}:`, { month: slip.month, rewards: slip.rewards, rewardValue });
+        }
+      });
+      
+      // جمع مكافآت قصاصات الراتب للسنة المحددة
+      updatedSlips.forEach((slip: any) => {
+        const slipYear = slip.month?.split('/')?.[1] || '';
+        if (slipYear === currentYear) {
+          const bonusValue = parseFloat(slip.bonus?.replace(/,/g, '') || '0');
+          slipsRewards += bonusValue;
+          console.log(`Salary slip for year ${currentYear}:`, { month: slip.month, bonus: slip.bonus, bonusValue });
+        }
+      });
+      
+      console.log(`deleteSalarySlip - مكافآت القصاصات: ${slipsRewards}`);
+      
+      // الحصول على القيمة الأساسية من التخزين المحلي
+      const baseRewardsString = await AsyncStorage.getItem(BASE_REWARDS_KEY);
+      const baseRewards = parseFloat(baseRewardsString || '0');
+      console.log(`deleteSalarySlip - القيمة الأساسية: ${baseRewards}`);
+      
+      const totalRewards = baseRewards + slipsRewards;
+      console.log(`deleteSalarySlip - المكافآت الكلية: ${baseRewards} + ${slipsRewards} = ${totalRewards}`);
+      
+      const formatNumber = (num: number) => num.toLocaleString('en-US');
+      
+      // تحديث totalRewards
+      const updatedUserDataWithRewards = {
+        ...userData,
+        totalRewards: formatNumber(totalRewards)
+      };
+      setUserData(updatedUserDataWithRewards);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserDataWithRewards));
+      
+      // حفظ totalRewards في قاعدة البيانات
+      if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
+        try {
+          const result = await databaseService.updateUser(currentUserId, {
+            total_rewards: formatNumber(totalRewards)
+          });
+          if (result === null) {
+            console.log('deleteSalarySlip - المستخدم غير موجود في قاعدة البيانات');
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+          } else {
+            console.log('deleteSalarySlip - تم حفظ totalRewards في قاعدة البيانات');
+          }
+        } catch (error) {
+          console.log('Error updating totalRewards in database:', error);
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
+        }
+      }
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -841,10 +1380,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Error deleting salary slip:', error);
     } finally {
       setIsSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
     }
   };
 
   const addProfitsSlip = async (slip: ProfitsData) => {
+    setManualSyncing(true);
     try {
       setIsSyncing(true);
       let databaseSuccess = true;
@@ -869,16 +1413,31 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             rating: slip.rating || 'متوسط'
           });
           
-          // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
-          const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
-          const finalUpdatedSlips = [...profitsSlips, finalSlip];
-          setProfitsSlips(finalUpdatedSlips);
-          await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
-          
-          console.log('addProfitsSlip: created slip with database id', savedSlip?.id);
+          if (savedSlip === null) {
+            console.log('addProfitsSlip - فشل في حفظ القصاصة في قاعدة البيانات');
+            databaseSuccess = false;
+            setSyncError(true);
+            setTimeout(() => setSyncError(false), 3000);
+            
+            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
+            const localSlip = { ...slip, id: Date.now() };
+            const localUpdatedSlips = [...profitsSlips, localSlip];
+            setProfitsSlips(localUpdatedSlips);
+            await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
+          } else {
+            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
+            const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
+            const finalUpdatedSlips = [...profitsSlips, finalSlip];
+            setProfitsSlips(finalUpdatedSlips);
+            await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
+            
+            console.log('addProfitsSlip: created slip with database id', savedSlip?.id);
+          }
         } catch (dbError) {
           console.log('Database error in addProfitsSlip:', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
           
           // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
           const localSlip = { ...slip, id: Date.now() };
@@ -894,7 +1453,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
       }
       
-      await updateMainDataFromSlip(slip, 'add', 'profits');
+      // تحديث المكافآت بناءً على النظام الجديد
+      await updateCurrentYearRewards();
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -904,10 +1464,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Error adding profits slip:', error);
     } finally {
       setIsSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
     }
   };
 
   const updateProfitsSlip = async (index: number, slip: ProfitsData) => {
+    setManualSyncing(true);
     try {
       setIsSyncing(true);
       let databaseSuccess = true;
@@ -958,6 +1523,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('updateProfitsSlip: database operation failed', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
           console.log('Keeping local changes only due to database error');
         }
       } else {
@@ -969,8 +1536,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       }
       
       // طرح القيمة القديمة وإضافة القيمة الجديدة
-      await updateMainDataFromSlip(existingSlip, 'remove', 'profits');
-      await updateMainDataFromSlip(slip, 'add', 'profits');
+      await updateMainDataFromSlip(existingSlip, 'remove', 'profits', true);
+      await updateMainDataFromSlip(slip, 'add', 'profits', true);
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -981,10 +1548,15 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Keeping local changes only due to error');
     } finally {
       setIsSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
     }
   };
 
   const deleteProfitsSlip = async (index: number) => {
+    setManualSyncing(true);
     try {
       setIsSyncing(true);
       let databaseSuccess = true;
@@ -1001,11 +1573,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         } catch (dbError) {
           console.log('Database error in deleteProfitsSlip:', dbError);
           databaseSuccess = false;
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
         }
       }
       
-      await updateMainDataFromSlip(slipToDelete, 'remove', 'profits');
-      await recalculateTotalsFromSlips(incentiveSlips, salarySlips, updatedSlips);
+      // تحديث المكافآت بناءً على النظام الجديد
+      await updateCurrentYearRewards();
       
       // إظهار علامة المزامنة فقط إذا نجحت العملية في قاعدة البيانات
       if (databaseSuccess) {
@@ -1015,10 +1589,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('Error deleting profits slip:', error);
     } finally {
       setIsSyncing(false);
+      // تأخير إخفاء علامة المزامنة لإظهار رسالة "تمت المزامنة"
+      setTimeout(() => {
+        setManualSyncing(false);
+      }, 1500);
     }
   };
 
-  const updateMainDataFromSlip = async (slip: any, operation: 'add' | 'remove', type: 'incentive' | 'salary' | 'profits') => {
+  const updateMainDataFromSlip = async (slip: any, operation: 'add' | 'remove', type: 'incentive' | 'salary' | 'profits', isUpdate: boolean = false) => {
     try {
       const formatNumber = (num: number) => num.toLocaleString('en-US');
       
@@ -1047,9 +1625,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         
         // تحديث الإجازات المرضية والاعتيادية
         const currentVacationBalance = parseInt(userData.vacationBalance) || 0;
-        const currentSickLeaveBalance = parseInt(userData.sickLeaveBalance) || 0;
+        const currentSickLeaveBalance = parseFloat(userData.sickLeaveBalance) || 0;
         const regularLeaveBonus = parseInt(userData.regularLeaveBonus) || 3;
-        const sickLeaveBonus = parseInt(userData.sickLeaveBonus) || 3;
+        const sickLeaveBonus = parseFloat(userData.sickLeaveBonus) || 2.5;
         
         const regularLeaveValue = parseInt(slip.regularLeave) || 0;
         const sickLeaveValue = parseInt(slip.sickLeave) || 0;
@@ -1109,9 +1687,25 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         });
         
         // تحديث المكافآت من قصاصات الحافز
-        const currentRewards = parseFloat(userData.totalRewards?.replace(/,/g, '') || '0');
+        let currentRewards = parseFloat(userData.totalRewards?.replace(/,/g, '') || '0');
+        // استخراج الشهر من slip.month
+        const slipMonth = slip.month?.split('/')?.[0] || '';
+        
+        // تصفير المكافآت فقط عند إضافة قصاصة جديدة لشهر 1، وليس عند التحديث
+        // عند التحديث، لا نفرض تصفير المكافآت حتى لو كانت القصاصة لشهر 1
+        if ((slipMonth === '1' || slipMonth === '01') && operation === 'add' && !isUpdate) {
+          currentRewards = 0;
+        }
+        
         const slipRewards = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
-        const newRewards = operation === 'add' ? currentRewards + slipRewards : currentRewards - slipRewards;
+        let newRewards;
+        if (operation === 'add') {
+          newRewards = currentRewards + slipRewards;
+        } else if (operation === 'remove') {
+          newRewards = currentRewards - slipRewards;
+        } else {
+          newRewards = currentRewards;
+        }
         
         console.log('Incentive rewards calculation:', {
           currentRewards,
@@ -1124,7 +1718,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         setUserData(prev => ({
           ...prev,
           totalIncentive: formatNumber(Math.max(0, newTotal)),
-          totalRewards: formatNumber(Math.max(0, newRewards)),
+          totalRewards: formatNumber(Math.max(0, Math.round(newRewards))),
           vacationBalance: newVacationBalance.toString(),
           sickLeaveBalance: newSickLeaveBalance.toString()
         }));
@@ -1133,7 +1727,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         const newUserData = { 
           ...userData, 
           totalIncentive: formatNumber(Math.max(0, newTotal)),
-          totalRewards: formatNumber(Math.max(0, newRewards)),
+          totalRewards: formatNumber(Math.max(0, Math.round(newRewards))),
           vacationBalance: newVacationBalance.toString(),
           sickLeaveBalance: newSickLeaveBalance.toString()
         };
@@ -1481,11 +2075,207 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     const currentMonth = now.getMonth() + 1;
     const currentYear = now.getFullYear();
     
-    if (currentMonth === 1) {
-      return (currentYear - 1).toString();
-    } else {
+    // من 1 فبراير إلى 31 يناير = نفس السنة المالية
+    if (currentMonth >= 2) {
       return currentYear.toString();
+    } else {
+      return (currentYear - 1).toString();
     }
+  };
+
+  // دالة جديدة لحساب مكافآت سنة معينة من القصاصات
+  const calculateRewardsForYear = (year: string) => {
+    let totalRewards = 0;
+    
+    console.log(`calculateRewardsForYear - بداية الحساب للسنة ${year}`);
+    console.log(`عدد قصاصات الحافز: ${incentiveSlips.length}`);
+    console.log(`عدد قصاصات الراتب: ${salarySlips.length}`);
+    
+    // جمع مكافآت قصاصات الحافز للسنة المحددة
+    incentiveSlips.forEach((slip, index) => {
+      const slipYear = slip.month?.split('/')?.[1] || '';
+      console.log(`قصاصة حافز ${index}:`, { month: slip.month, slipYear, rewards: slip.rewards });
+      if (slipYear === year) {
+        const rewardValue = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
+        totalRewards += rewardValue;
+        console.log(`Incentive slip for year ${year}:`, { month: slip.month, rewards: slip.rewards, rewardValue });
+      }
+    });
+    
+    // جمع مكافآت قصاصات الراتب للسنة المحددة
+    salarySlips.forEach((slip, index) => {
+      const slipYear = slip.month?.split('/')?.[1] || '';
+      console.log(`قصاصة راتب ${index}:`, { month: slip.month, slipYear, bonus: slip.bonus });
+      if (slipYear === year) {
+        const bonusValue = parseFloat(slip.bonus?.replace(/,/g, '') || '0');
+        totalRewards += bonusValue;
+        console.log(`Salary slip for year ${year}:`, { month: slip.month, bonus: slip.bonus, bonusValue });
+      }
+    });
+    
+    console.log(`Total rewards for year ${year}:`, totalRewards);
+    return totalRewards;
+  };
+
+  // دالة جديدة لتحديث مكافآت السنة الحالية
+  const updateCurrentYearRewards = async () => {
+    console.log('updateCurrentYearRewards - بداية الدالة المحدثة');
+    
+    // قراءة الأرصدة من التخزين المحلي بدلاً من React state
+    const storedUserData = await AsyncStorage.getItem(STORAGE_KEY);
+    const currentUserData = storedUserData ? JSON.parse(storedUserData) : userData;
+    
+    console.log('updateCurrentYearRewards - الأرصدة من التخزين المحلي:', {
+      vacationBalance: currentUserData.vacationBalance,
+      sickLeaveBalance: currentUserData.sickLeaveBalance
+    });
+    
+    const currentYear = getCurrentFiscalYear();
+    console.log(`updateCurrentYearRewards - السنة المالية الحالية: ${currentYear}`);
+    
+    // قراءة القصاصات من التخزين مباشرة لضمان الدقة
+    const storedIncentiveSlips = await AsyncStorage.getItem(INCENTIVE_SLIPS_KEY);
+    const storedSalarySlips = await AsyncStorage.getItem(SALARY_SLIPS_KEY);
+    const currentIncentiveSlips = storedIncentiveSlips ? JSON.parse(storedIncentiveSlips) : [];
+    const currentSalarySlips = storedSalarySlips ? JSON.parse(storedSalarySlips) : [];
+    
+    console.log(`updateCurrentYearRewards - عدد قصاصات الحافز من التخزين: ${currentIncentiveSlips.length}`);
+    console.log(`updateCurrentYearRewards - عدد قصاصات الراتب من التخزين: ${currentSalarySlips.length}`);
+    
+    // حساب المكافآت من القصاصات المخزنة
+    let slipsRewards = 0;
+    
+    // جمع مكافآت قصاصات الحافز للسنة المحددة
+    currentIncentiveSlips.forEach((slip: any, index: number) => {
+      const slipYear = slip.month?.split('/')?.[1] || '';
+      if (slipYear === currentYear) {
+        const rewardValue = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
+        slipsRewards += rewardValue;
+        console.log(`Incentive slip from storage for year ${currentYear}:`, { month: slip.month, rewards: slip.rewards, rewardValue });
+      }
+    });
+    
+    // جمع مكافآت قصاصات الراتب للسنة المحددة
+    currentSalarySlips.forEach((slip: any, index: number) => {
+      const slipYear = slip.month?.split('/')?.[1] || '';
+      if (slipYear === currentYear) {
+        const bonusValue = parseFloat(slip.bonus?.replace(/,/g, '') || '0');
+        slipsRewards += bonusValue;
+        console.log(`Salary slip from storage for year ${currentYear}:`, { month: slip.month, bonus: slip.bonus, bonusValue });
+      }
+    });
+    
+    console.log(`updateCurrentYearRewards - مكافآت القصاصات من التخزين: ${slipsRewards}`);
+    
+    // الحصول على القيمة الأساسية من التخزين المحلي
+    const baseRewardsString = await AsyncStorage.getItem(BASE_REWARDS_KEY);
+    const baseRewards = parseFloat(baseRewardsString || '0');
+    console.log(`updateCurrentYearRewards - القيمة الأساسية: ${baseRewards} (من التخزين: ${baseRewardsString})`);
+    console.log(`updateCurrentYearRewards - userData.totalRewards الحالي: ${userData.totalRewards}`);
+    console.log(`updateCurrentYearRewards - currentUserData.totalRewards: ${currentUserData.totalRewards}`);
+    
+    const totalRewards = baseRewards + slipsRewards;
+    console.log(`updateCurrentYearRewards - المكافآت الكلية: ${baseRewards} + ${slipsRewards} = ${totalRewards}`);
+    
+    const formatNumber = (num: number) => num.toLocaleString('en-US');
+    
+    // تحديث totalRewards فقط دون التأثير على الأرصدة
+    const updatedUserData = { ...currentUserData, totalRewards: formatNumber(totalRewards) };
+    setUserData(updatedUserData);
+    await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(updatedUserData));
+    
+    // حفظ totalRewards فقط في قاعدة البيانات
+    if (isConnectedToDatabase && currentUserId && isSupabaseConfigured()) {
+      try {
+        const result = await databaseService.updateUser(currentUserId, {
+          total_rewards: formatNumber(totalRewards)
+        });
+        if (result === null) {
+          console.log('updateCurrentYearRewards - المستخدم غير موجود في قاعدة البيانات');
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
+        } else {
+          console.log('updateCurrentYearRewards - تم حفظ totalRewards في قاعدة البيانات');
+        }
+      } catch (error) {
+        console.log('Error updating totalRewards in database:', error);
+        setSyncError(true);
+        setTimeout(() => setSyncError(false), 3000);
+      }
+    }
+
+    console.log('updateCurrentYearRewards - الأرصدة بعد التحديث:', {
+      vacationBalance: updatedUserData.vacationBalance,
+      sickLeaveBalance: updatedUserData.sickLeaveBalance
+    });
+
+    console.log('updateCurrentYearRewards:', {
+      currentYear,
+      baseRewardsString,
+      baseRewards,
+      slipsRewards,
+      totalRewards: formatNumber(totalRewards),
+      allIncentiveSlips: currentIncentiveSlips.length,
+      allSalarySlips: currentSalarySlips.length
+    });
+  };
+
+  // دالة جديدة لتحديث المكافآت الأساسية فقط (من الإعدادات)
+  const updateBaseRewards = async (newBaseRewards: string) => {
+    console.log('updateBaseRewards - بداية الدالة:', { newBaseRewards });
+    
+    const cleanValue = newBaseRewards.replace(/,/g, '');
+    const newTotalRewards = parseFloat(cleanValue) || 0;
+    console.log('updateBaseRewards - المكافآت الكلية الجديدة:', { cleanValue, newTotalRewards });
+    
+    // حساب القصاصات الموجودة
+    const currentYear = getCurrentFiscalYear();
+    const storedIncentiveSlips = await AsyncStorage.getItem(INCENTIVE_SLIPS_KEY);
+    const storedSalarySlips = await AsyncStorage.getItem(SALARY_SLIPS_KEY);
+    const currentIncentiveSlips = storedIncentiveSlips ? JSON.parse(storedIncentiveSlips) : [];
+    const currentSalarySlips = storedSalarySlips ? JSON.parse(storedSalarySlips) : [];
+    
+    let existingSlipsRewards = 0;
+    
+    // جمع مكافآت قصاصات الحافز للسنة الحالية
+    currentIncentiveSlips.forEach((slip: any) => {
+      const slipYear = slip.month?.split('/')?.[1] || '';
+      if (slipYear === currentYear) {
+        const rewardValue = parseFloat(slip.rewards?.replace(/,/g, '') || '0');
+        existingSlipsRewards += rewardValue;
+      }
+    });
+    
+    // جمع مكافآت قصاصات الراتب للسنة الحالية
+    currentSalarySlips.forEach((slip: any) => {
+      const slipYear = slip.month?.split('/')?.[1] || '';
+      if (slipYear === currentYear) {
+        const bonusValue = parseFloat(slip.bonus?.replace(/,/g, '') || '0');
+        existingSlipsRewards += bonusValue;
+      }
+    });
+    
+    console.log('updateBaseRewards - القصاصات الموجودة:', { existingSlipsRewards });
+    
+    // حساب القيمة الأساسية = المكافآت الكلية الجديدة - القصاصات الموجودة
+    const baseRewards = newTotalRewards - existingSlipsRewards;
+    console.log('updateBaseRewards - القيمة الأساسية المحسوبة:', { baseRewards });
+    
+    // حفظ القيمة الأساسية في التخزين المحلي
+    await AsyncStorage.setItem(BASE_REWARDS_KEY, baseRewards.toString());
+    console.log('updateBaseRewards - تم حفظ القيمة الأساسية في التخزين المحلي');
+    
+    // التحقق من أن القيمة تم حفظها بشكل صحيح
+    const savedValue = await AsyncStorage.getItem(BASE_REWARDS_KEY);
+    console.log('updateBaseRewards - Saved value check:', {
+      savedValue,
+      expectedValue: baseRewards.toString()
+    });
+    
+    // تحديث المكافآت الكلية بناءً على القيمة الأساسية الجديدة + القصاصات الموجودة
+    await updateCurrentYearRewards();
+    
+    console.log('updateBaseRewards - تم استدعاء updateCurrentYearRewards');
   };
 
   const checkAndResetRewards = async () => {
@@ -1494,16 +2284,23 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     const currentDay = now.getDate();
     const currentYear = now.getFullYear();
     
-    // التحقق من تصفير المكافآت
+    // التحقق من تغيير السنة المالية (1 فبراير)
     if (currentMonth === 2 && currentDay === 1) {
       const lastResetDate = userData.lastRewardsResetDate;
       const currentResetDate = `01/02/${currentYear}`;
       
       if (lastResetDate !== currentResetDate) {
+        // تصفير القيمة الأساسية للمكافآت
+        await AsyncStorage.setItem(BASE_REWARDS_KEY, '0');
+        
+        // تحديث تاريخ التصفير
         await updateUserData({
-          totalRewards: '0',
           lastRewardsResetDate: currentResetDate
         });
+        
+        // تحديث المكافآت بناءً على قصاصات السنة الجديدة
+        await updateCurrentYearRewards();
+        
         console.log('تم تصفير المكافآت للسنة المالية الجديدة');
       }
     }
@@ -1658,7 +2455,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const unlinkFromDatabase = async () => {
+  const logoutFromDatabase = async () => {
     try {
       setIsSyncing(true);
       setCurrentUserId(null);
@@ -1672,8 +2469,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await AsyncStorage.removeItem(SALARY_SLIPS_KEY);
       await AsyncStorage.removeItem(PROFITS_SLIPS_KEY);
       await AsyncStorage.removeItem(STORAGE_KEY);
+      await AsyncStorage.removeItem(BASE_REWARDS_KEY);
       triggerSaveToast();
-      // إعادة تهيئة التطبيق بعد فك الربط
+      // إعادة تهيئة التطبيق بعد تسجيل الخروج
       setTimeout(() => {
         if (typeof window !== 'undefined') {
           window.location.reload();
@@ -1681,10 +2479,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
           router.replace('/');
         }
       }, 500);
-      return { success: true, message: 'تم فك ربط التطبيق من قاعدة البيانات' };
+      return { success: true, message: 'تم تسجيل الخروج بنجاح' };
     } catch (error) {
-      console.log('Error unlinking from database:', error);
-      return { success: false, message: 'حدث خطأ أثناء فك الربط' };
+      console.log('Error logging out:', error);
+      return { success: false, message: 'حدث خطأ أثناء تسجيل الخروج' };
     } finally {
       setIsSyncing(false);
     }
@@ -1772,6 +2570,41 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             rating: slip.rating || 'متوسط'
           });
         }
+      }
+      
+      // حفظ بيانات المستخدم في قاعدة البيانات
+      try {
+        const result = await databaseService.updateUser(currentUserId, {
+          name: userData.name,
+          computer_id: userData.computerId,
+          vacation_balance: userData.vacationBalance,
+          sick_leave_balance: userData.sickLeaveBalance,
+          next_promotion_date: userData.nextPromotionDate,
+          next_allowance_date: userData.nextAllowanceDate,
+          total_rewards: userData.totalRewards,
+          start_date: userData.startDate,
+          total_incentive: userData.totalIncentive,
+          total_salary: userData.totalSalary,
+          total_profits: userData.totalProfits,
+          last_rewards_reset_date: userData.lastRewardsResetDate,
+          regular_leave_bonus: userData.regularLeaveBonus,
+          sick_leave_bonus: userData.sickLeaveBonus,
+          grade: userData.grade,
+          stage: userData.stage,
+          courses_names: userData.coursesNames,
+          courses_completed: userData.coursesCompleted
+        });
+        if (result === null) {
+          console.log('saveToDatabase - المستخدم غير موجود في قاعدة البيانات');
+          setSyncError(true);
+          setTimeout(() => setSyncError(false), 3000);
+          throw new Error('User not found in database');
+        }
+      } catch (error) {
+        console.log('Error saving user data to database:', error);
+        setSyncError(true);
+        setTimeout(() => setSyncError(false), 3000);
+        throw error;
       }
       
       triggerSaveToast();
@@ -2145,6 +2978,93 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     return false; // فشل في معالجة الخطأ
   };
 
+  // دالة تسجيل الدخول
+  const loginUser = async (computerId: string, password: string) => {
+    try {
+      setIsSyncing(true);
+      console.log('Logging in with:', { computerId, password });
+      
+      // التحقق من وجود Supabase
+      if (!isSupabaseConfigured()) {
+        return { success: false, message: 'قاعدة البيانات غير متاحة. يرجى التحقق من إعدادات الاتصال.' };
+      }
+      
+      // التحقق من وجود المستخدم
+      const existingUser = await databaseService.checkUserExists(computerId);
+      
+      if (!existingUser) {
+        return { success: false, message: 'رقم الحاسبة غير موجود في قاعدة البيانات' };
+      }
+      
+      // التحقق من كلمة السر
+      const isPasswordCorrect = await databaseService.checkPassword(computerId, password);
+      
+      if (!isPasswordCorrect) {
+        return { success: false, message: 'كلمة السر غير صحيحة' };
+      }
+      
+      // تسجيل الدخول بنجاح
+      setCurrentUserId(existingUser.id.toString());
+      await AsyncStorage.setItem(USER_ID_KEY, existingUser.id.toString());
+      setIsConnectedToDatabase(true);
+      await AsyncStorage.setItem(IS_CONNECTED_KEY, 'true');
+      
+      // تحميل البيانات من قاعدة البيانات
+      await loadFromDatabase();
+      
+      console.log('Successfully logged in:', existingUser);
+      return { success: true, message: 'تم تسجيل الدخول بنجاح' };
+    } catch (error) {
+      console.log('Error logging in:', error);
+      return { success: false, message: 'حدث خطأ أثناء تسجيل الدخول' };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  // دالة إنشاء حساب جديد
+  const registerUser = async (computerId: string, password: string) => {
+    try {
+      setIsSyncing(true);
+      console.log('Registering with:', { computerId, password });
+      
+      // التحقق من وجود Supabase
+      if (!isSupabaseConfigured()) {
+        return { success: false, message: 'قاعدة البيانات غير متاحة. يرجى التحقق من إعدادات الاتصال.' };
+      }
+      
+      // التحقق من وجود المستخدم
+      const existingUser = await databaseService.checkUserExists(computerId);
+      
+      if (existingUser) {
+        return { success: false, message: 'رقم الحاسبة موجود بالفعل في قاعدة البيانات' };
+      }
+      
+      // إنشاء حساب جديد مع كلمة السر
+      const newUser = await databaseService.createUserWithPassword(computerId, password);
+      
+      if (newUser) {
+        setCurrentUserId(newUser.id.toString());
+        await AsyncStorage.setItem(USER_ID_KEY, newUser.id.toString());
+        setIsConnectedToDatabase(true);
+        await AsyncStorage.setItem(IS_CONNECTED_KEY, 'true');
+        
+        // حفظ البيانات المحلية في قاعدة البيانات
+        await saveToDatabase();
+        
+        console.log('Successfully created new account:', newUser);
+        return { success: true, message: 'تم إنشاء الحساب بنجاح' };
+      } else {
+        return { success: false, message: 'فشل في إنشاء الحساب' };
+      }
+    } catch (error) {
+      console.log('Error registering:', error);
+      return { success: false, message: 'حدث خطأ أثناء إنشاء الحساب' };
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   // إذا كان هناك خطأ، اعرض رسالة خطأ بسيطة
   if (hasError) {
     return (
@@ -2160,50 +3080,60 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <UserDataContext.Provider value={{
-      userData,
-      currentUserId,
-      isConnectedToDatabase,
-      updateUserData,
-      calculateServiceDuration,
-      calculateServiceDays,
-      getCurrentFiscalYear,
-      checkAndResetRewards,
-      isLoading,
-      showSaveToast,
-      triggerSaveToast,
-      isSyncing,
-      manualSyncing,
-      incentiveSlips,
-      addIncentiveSlip,
-      updateIncentiveSlip,
-      deleteIncentiveSlip,
-      salarySlips,
-      addSalarySlip,
-      updateSalarySlip,
-      deleteSalarySlip,
-      profitsSlips,
-      addProfitsSlip,
-      updateProfitsSlip,
-      deleteProfitsSlip,
+    <UserDataContext.Provider
+      value={{
+        userData,
+        currentUserId,
+        isConnectedToDatabase,
+        updateUserData,
+        calculateServiceDuration,
+        calculateServiceDays,
+        getCurrentFiscalYear,
+        checkAndResetRewards,
+        isLoading,
+        showSaveToast,
+        triggerSaveToast,
+        isSyncing,
+        manualSyncing,
+        syncError,
+        setManualSyncing,
+        setSyncError,
+        linkToDatabase,
+        logoutFromDatabase,
+        syncToDatabase,
+        saveToDatabase,
+        loginUser,
+        registerUser,
+        incentiveSlips,
+        addIncentiveSlip,
+        updateIncentiveSlip,
+        deleteIncentiveSlip,
+        salarySlips,
+        addSalarySlip,
+        updateSalarySlip,
+        deleteSalarySlip,
+        profitsSlips,
+        addProfitsSlip,
+        updateProfitsSlip,
+        deleteProfitsSlip,
         updateCourseCompletion,
-  linkToDatabase,
-  unlinkFromDatabase,
-  syncToDatabase,
-      saveToDatabase,
-    debugUserData,
-    testIncentiveSlipOperations,
-    testUpdateMainDataFromSlip,
-    debugIncentiveProblem,
-    fixIncentiveTotal,
-    testDirectIncentiveUpdate,
-    debugRewardsProblem,
-    fixRewardsTotal,
-    cleanupLocalData,
-    syncPendingLocalData,
-    cleanupDuplicateSlips,
-    handleDatabaseError
-    }}>
+        debugUserData,
+        testIncentiveSlipOperations,
+        testUpdateMainDataFromSlip,
+        debugIncentiveProblem,
+        fixIncentiveTotal,
+        testDirectIncentiveUpdate,
+        debugRewardsProblem,
+        fixRewardsTotal,
+        cleanupLocalData,
+        syncPendingLocalData,
+        cleanupDuplicateSlips,
+        handleDatabaseError,
+        calculateRewardsForYear,
+        updateCurrentYearRewards,
+        updateBaseRewards,
+      }}
+    >
       {children}
     </UserDataContext.Provider>
   );

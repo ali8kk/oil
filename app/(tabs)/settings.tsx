@@ -1,4 +1,4 @@
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, TextInput, Alert, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { User, ChevronRight, Settings2, Camera, Cloud, Download, Upload, X, Eye, EyeOff, Database, RefreshCw, Unlink, Settings } from 'lucide-react-native';
 import { router } from 'expo-router';
@@ -7,6 +7,9 @@ import { useState, useEffect } from 'react';
 import Toast from '../../components/Toast';
 import { checkSupabaseConfig, testDirectConnection, clearSupabaseSession, supabase } from '../../lib/supabase';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import AuthChoiceModal from '../../components/AuthChoiceModal';
+import LoginModal from '../../components/LoginModal';
+import RegisterModal from '../../components/RegisterModal';
 
 import { useUserData } from '../../contexts/UserDataContext';
 
@@ -41,17 +44,19 @@ export default function SettingsScreen() {
     currentUserId,
     linkToDatabase,
     syncToDatabase,
-    unlinkFromDatabase,
-    saveToDatabase
+    logoutFromDatabase,
+    saveToDatabase,
+    loginUser,
+    registerUser,
+    setManualSyncing
   } = useUserData();
   
-  const [showComputerIdInput, setShowComputerIdInput] = useState(false);
-  const [inputComputerId, setInputComputerId] = useState('');
-  const [inputPassword, setInputPassword] = useState('');
-  const [errorMessage, setErrorMessage] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [showAuthChoice, setShowAuthChoice] = useState(false);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [showUnlinkWarning, setShowUnlinkWarning] = useState(false);
   const [showLinkWarning, setShowLinkWarning] = useState(false);
+  const [showVersionInfo, setShowVersionInfo] = useState(false);
   
   // منطق الكشف عن الضغط المتكرر
   const [pressCount, setPressCount] = useState(0);
@@ -214,12 +219,12 @@ export default function SettingsScreen() {
 
   return (
     <SafeAreaView style={styles.container} edges={['bottom']}>
-      <TouchableOpacity 
-        style={styles.container} 
-        activeOpacity={1} 
-        onPress={handleSettingsPress}
-      >
-        <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+      <View style={styles.container}>
+        <ScrollView 
+          style={styles.content} 
+          showsVerticalScrollIndicator={false}
+          onTouchStart={handleSettingsPress}
+        >
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>الحساب</Text>
           
@@ -265,8 +270,8 @@ export default function SettingsScreen() {
               {/* تم حذف زري تحميل البيانات وحفظ البيانات لأن المزامنة تلقائية */}
               <SettingItem
                 icon={<Unlink size={24} color="#EF4444" />}
-                title="فك الربط"
-                subtitle="إلغاء الربط مع قاعدة البيانات"
+                title="تسجيل الخروج"
+                subtitle="تسجيل الخروج من الحساب"
                 onPress={() => setShowUnlinkWarning(true)}
               />
             </View>
@@ -281,8 +286,13 @@ export default function SettingsScreen() {
             onPress={handleInstagramPress}
           />
         </View>
-      </ScrollView>
-      </TouchableOpacity>
+        
+        {/* معلومات النسخة */}
+        <View style={styles.versionContainer}>
+          <Text style={styles.versionText}>النسخة 1.0.4</Text>
+        </View>
+              </ScrollView>
+      </View>
 
       {/* واجهة الأدوات المخفية */}
       {showToolsInterface && (
@@ -305,6 +315,7 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={[styles.toolsButton, { backgroundColor: '#7C3AED', marginBottom: 12 }]}
               onPress={handleCheckApiUrl}
+              activeOpacity={0.7}
             >
               <Settings size={24} color="#ffffff" />
               <View style={styles.toolsButtonContent}>
@@ -316,6 +327,7 @@ export default function SettingsScreen() {
             <TouchableOpacity
               style={[styles.toolsButton, { backgroundColor: '#DC2626' }]}
               onPress={handleClearSessions}
+              activeOpacity={0.7}
             >
               <RefreshCw size={24} color="#ffffff" />
               <View style={styles.toolsButtonContent}>
@@ -323,131 +335,80 @@ export default function SettingsScreen() {
                 <Text style={styles.toolsButtonDescription}>يحل مشكلة 401 ويمسح البيانات المحلية</Text>
               </View>
             </TouchableOpacity>
+
+            {/* زر اختبار علامة المزامنة */}
+            <TouchableOpacity
+              style={[styles.toolsButton, { backgroundColor: '#10B981', marginBottom: 12 }]}
+              onPress={() => {
+                setManualSyncing(true);
+                setTimeout(() => setManualSyncing(false), 3000);
+              }}
+              activeOpacity={0.7}
+            >
+              <RefreshCw size={24} color="#ffffff" />
+              <View style={styles.toolsButtonContent}>
+                <Text style={styles.toolsButtonText}>اختبار علامة المزامنة</Text>
+                <Text style={styles.toolsButtonDescription}>إظهار علامة المزامنة لمدة 3 ثوانٍ</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* زر معلومات النسخ */}
+            <TouchableOpacity
+              style={[styles.toolsButton, { backgroundColor: '#F59E0B', marginBottom: 12 }]}
+              onPress={() => setShowVersionInfo(true)}
+              activeOpacity={0.7}
+            >
+              <Settings size={24} color="#ffffff" />
+              <View style={styles.toolsButtonContent}>
+                <Text style={styles.toolsButtonText}>معلومات النسخ</Text>
+                <Text style={styles.toolsButtonDescription}>عرض تاريخ التحديثات والإصلاحات</Text>
+              </View>
+            </TouchableOpacity>
           </View>
         </View>
       )}
 
-      <Modal
-        visible={showComputerIdInput}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setShowComputerIdInput(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>ربط بقاعدة البيانات</Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowComputerIdInput(false);
-                  setInputComputerId('');
-                  setInputPassword('');
-                  setErrorMessage('');
-                }}
-                style={styles.closeButton}
-              >
-                <X size={20} color="#6B7280" />
-              </TouchableOpacity>
-            </View>
-            
-            <Text style={styles.modalDescription}>
-              أدخل رقم الحاسبة وكلمة السر لربط حسابك بقاعدة البيانات{'\n'}
-              إذا كان الحساب موجود في قاعدة البيانات سيتم استدعاء البيانات منه{'\n'}
-              إذا لم يكن موجود سيتم إنشاء حساب جديد مع الاحتفاظ بالبيانات الحالية
-            </Text>
-            
-            <TextInput
-              style={styles.modalTextInput}
-              value={inputComputerId}
-              onChangeText={(text) => {
-                // السماح بالأرقام فقط
-                const numericValue = text.replace(/[^0-9]/g, '');
-                setInputComputerId(numericValue);
-                setErrorMessage('');
-              }}
-              placeholder="أدخل رقم الحاسبة"
-              placeholderTextColor="#9CA3AF"
-              keyboardType="numeric"
-              textAlign="right"
-              maxLength={10}
-            />
-            
-            <View style={styles.passwordInputContainer}>
-              <TouchableOpacity onPress={() => setShowPassword(!showPassword)} style={styles.eyeIconContainer}>
-                {showPassword ? <Eye size={20} color="#6B7280" /> : <EyeOff size={20} color="#6B7280" />}
-              </TouchableOpacity>
-              <TextInput
-                style={[styles.modalTextInput, { flex: 1 }]}
-                value={inputPassword}
-                onChangeText={(text) => {
-                  // السماح بالأرقام فقط مع حد أقصى 4 أرقام
-                  const numericValue = text.replace(/[^0-9]/g, '').slice(0, 4);
-                  setInputPassword(numericValue);
-                  setErrorMessage('');
-                }}
-                placeholder="أدخل كلمة السر (4 أرقام)"
-                placeholderTextColor="#9CA3AF"
-                keyboardType="numeric"
-                textAlign="right"
-                maxLength={4}
-                secureTextEntry={!showPassword}
-              />
-            </View>
-            {errorMessage ? (
-              <Text style={{ color: 'red', textAlign: 'center', marginBottom: 8 }}>{errorMessage}</Text>
-            ) : null}
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.modalButton, styles.cancelButton]}
-                onPress={() => {
-                  setShowComputerIdInput(false);
-                  setInputComputerId('');
-                  setInputPassword('');
-                  setErrorMessage('');
-                }}
-              >
-                <Text style={styles.cancelButtonText}>إلغاء</Text>
-              </TouchableOpacity>
-              
-              <TouchableOpacity
-                style={[styles.modalButton, styles.confirmButton, (!inputComputerId || !inputPassword) && styles.disabledButton]}
-                onPress={async () => {
-                  if (inputComputerId && inputPassword) {
-                    let timeoutId: any;
-                    let finished = false;
-                    // حماية ضد التعليق
-                    timeoutId = setTimeout(() => {
-                      if (!finished) {
-                        setErrorMessage('انتهت مهلة الربط. تحقق من الاتصال وحاول مرة أخرى.');
-                      }
-                    }, 10000);
-                    const result = await linkToDatabase(inputComputerId, inputPassword);
-                    finished = true;
-                    clearTimeout(timeoutId);
-                    if (result.success) {
-                      setShowComputerIdInput(false);
-                      setInputComputerId('');
-                      setInputPassword('');
-                      setErrorMessage('');
-                      console.log(result.message);
-                    } else {
-                      setErrorMessage(result.message || 'حدث خطأ أثناء الربط');
-                    }
-                  }
-                }}
-                disabled={!inputComputerId || !inputPassword || isSyncing}
-              >
-                <Cloud size={18} color="#FFFFFF" />
-                <Text style={styles.confirmButtonText}>
-                  {isSyncing ? 'جاري الربط...' : 'تأكيد الربط'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </View>
-      </Modal>
+      {/* Modal اختيار نوع العملية */}
+      <AuthChoiceModal
+        visible={showAuthChoice}
+        onClose={() => setShowAuthChoice(false)}
+        onChooseLogin={() => {
+          setShowAuthChoice(false);
+          setShowLoginModal(true);
+        }}
+        onChooseRegister={() => {
+          setShowAuthChoice(false);
+          setShowRegisterModal(true);
+        }}
+      />
 
-      {/* Modal التحذير لفك الربط */}
+      {/* Modal تسجيل الدخول */}
+      <LoginModal
+        visible={showLoginModal}
+        onClose={() => setShowLoginModal(false)}
+        onLogin={loginUser}
+        onSwitchToRegister={() => {
+          setShowLoginModal(false);
+          setShowRegisterModal(true);
+        }}
+      />
+
+      {/* Modal إنشاء حساب جديد */}
+      <RegisterModal
+        visible={showRegisterModal}
+        onClose={() => setShowRegisterModal(false)}
+        onRegister={registerUser}
+        onSwitchToLogin={() => {
+          setShowRegisterModal(false);
+          setShowLoginModal(true);
+        }}
+        onNavigateToAccountInfo={() => {
+          setShowRegisterModal(false);
+          router.push('/account-info');
+        }}
+      />
+
+      {/* Modal التحذير لتسجيل الخروج */}
       <Modal
         visible={showUnlinkWarning}
         transparent={true}
@@ -457,7 +418,7 @@ export default function SettingsScreen() {
         <View style={styles.modalOverlay}>
           <View style={styles.modalContent}>
             <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>تحذير فك الربط</Text>
+              <Text style={styles.modalTitle}>تسجيل الخروج</Text>
               <TouchableOpacity
                 onPress={() => setShowUnlinkWarning(false)}
                 style={styles.closeButton}
@@ -467,9 +428,9 @@ export default function SettingsScreen() {
             </View>
             
             <Text style={styles.modalDescription}>
-              سيتم حذف كل المعلومات الموجودة في التطبيق{'\n'}
-              لاكن ستبقى مخزنه في قاعدة المعلومات{'\n'}
-              ويمكنك استرجاعها في اي وقت
+              هل أنت متأكد من تسجيل الخروج؟{'\n'}
+              سيتم حذف البيانات المحلية من التطبيق{'\n'}
+              لكنها ستبقى محفوظة في قاعدة البيانات
             </Text>
             
             <View style={styles.modalButtons}>
@@ -484,7 +445,7 @@ export default function SettingsScreen() {
                 style={[styles.modalButton, styles.confirmButton]}
                 onPress={async () => {
                   setShowUnlinkWarning(false);
-                  const result = await unlinkFromDatabase();
+                  const result = await logoutFromDatabase();
                   if (result.success) {
                     console.log(result.message);
                   } else {
@@ -493,7 +454,87 @@ export default function SettingsScreen() {
                 }}
               >
                 <Unlink size={18} color="#FFFFFF" />
-                <Text style={styles.confirmButtonText}>استمرار</Text>
+                <Text style={styles.confirmButtonText}>تسجيل الخروج</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal معلومات النسخ */}
+      <Modal
+        visible={showVersionInfo}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowVersionInfo(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>معلومات النسخ</Text>
+              <TouchableOpacity
+                onPress={() => setShowVersionInfo(false)}
+                style={styles.closeButton}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.versionInfoScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.4</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشكلة حذف قصاصة الراتب أو الحافز بحيث لا يتم تصفير المكافآت الكلية بعد الحذف، بل يتم طرح قيمة القصاصة فقط مع الحفاظ على القيمة الأساسية من الإعدادات.{"\n"}
+                  • تحسين دقة حساب المكافآت الكلية بعد أي عملية حذف.
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.3</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشكلة حذف القصاصات في نسخة الويب{'\n'}
+                  • إصلاح مشكلة عدم ظهور رسائل النجاح في الويب{'\n'}
+                  • تحسين استجابة الأزرار في لوحة الأدوات للويب{'\n'}
+                  • إصلاح مشكلة Alert.alert في الويب باستخدام window.confirm
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.2</Text>
+                <Text style={styles.versionDescription}>
+                  • إضافة زر معلومات النسخ في لوحة الأدوات{'\n'}
+                  • عرض تاريخ التحديثات والإصلاحات لكل نسخة{'\n'}
+                  • تحسين واجهة لوحة الأدوات
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.1</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشاكل التمرير في شاشة الإعدادات{'\n'}
+                  • إصلاح مشاكل التمرير في شاشة معلومات الحساب{'\n'}
+                  • تحسين تجربة المستخدم عند وجود لوحة المفاتيح
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.0</Text>
+                <Text style={styles.versionDescription}>
+                  • إضافة نظام المصادقة الجديد (تسجيل دخول/إنشاء حساب){'\n'}
+                  • إصلاح مشكلة القيمة الافتراضية للمكافآت (250 → 0){'\n'}
+                  • إضافة معالجة شاملة للأخطاء في قاعدة البيانات{'\n'}
+                  • تحسين علامة المزامنة مع دعم حالة الخطأ{'\n'}
+                  • إضافة معلومات النسخة في الإعدادات
+                </Text>
+              </View>
+            </ScrollView>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={() => setShowVersionInfo(false)}
+              >
+                <Text style={styles.confirmButtonText}>إغلاق</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -535,7 +576,7 @@ export default function SettingsScreen() {
                 style={[styles.modalButton, styles.confirmButton]}
                 onPress={() => {
                   setShowLinkWarning(false);
-                  setShowComputerIdInput(true);
+                  setShowAuthChoice(true);
                 }}
               >
                 <Cloud size={18} color="#FFFFFF" />
@@ -854,5 +895,40 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     opacity: 0.9,
     marginTop: 4,
+  },
+  versionContainer: {
+    alignItems: 'flex-end',
+    paddingVertical: 20,
+    paddingHorizontal: 16,
+  },
+  versionText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Regular',
+    color: '#9CA3AF',
+    textAlign: 'right',
+  },
+  versionInfoScroll: {
+    maxHeight: 300,
+    marginBottom: 16,
+  },
+  versionItem: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  versionNumber: {
+    fontSize: 16,
+    fontFamily: 'Cairo-Bold',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'right',
+  },
+  versionDescription: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Regular',
+    color: '#6B7280',
+    lineHeight: 20,
+    textAlign: 'right',
   },
 });

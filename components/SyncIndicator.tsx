@@ -4,9 +4,10 @@ import { Check } from 'lucide-react-native';
 import { useUserData } from '../contexts/UserDataContext';
 
 export default function SyncIndicator() {
-  const { manualSyncing, isConnectedToDatabase } = useUserData();
+  const { manualSyncing, isConnectedToDatabase, syncError } = useUserData();
   const [show, setShow] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
+  const [showError, setShowError] = useState(false);
   const spinValue = useRef(new Animated.Value(0)).current;
   const prevManualSyncing = useRef(false);
 
@@ -15,6 +16,7 @@ export default function SyncIndicator() {
     if (manualSyncing) {
       setShow(true);
       setShowCompleted(false);
+      setShowError(false);
       Animated.loop(
         Animated.timing(spinValue, {
           toValue: 1,
@@ -37,23 +39,45 @@ export default function SyncIndicator() {
     if (!isConnectedToDatabase) {
       setShow(false);
       setShowCompleted(false);
+      setShowError(false);
     }
   }, [manualSyncing, isConnectedToDatabase]);
+
+  // معالجة حالة الخطأ
+  useEffect(() => {
+    if (syncError) {
+      setShow(true);
+      setShowCompleted(false);
+      setShowError(true);
+      spinValue.stopAnimation();
+      setTimeout(() => {
+        setShow(false);
+        setShowError(false);
+      }, 3000);
+    }
+  }, [syncError]);
 
   const spin = spinValue.interpolate({
     inputRange: [0, 1],
     outputRange: ['0deg', '360deg'],
   });
 
-  if (!isConnectedToDatabase || (!show && !showCompleted)) return null;
+  if (!isConnectedToDatabase || (!show && !showCompleted && !showError)) return null;
+
+  console.log('SyncIndicator:', { manualSyncing, isConnectedToDatabase, show, showCompleted, showError });
 
   return (
-    <View style={styles.syncIndicator}>
+    <View style={[
+      styles.syncIndicator,
+      showError && styles.syncIndicatorError
+    ]}>
       <Text style={styles.syncText}>
-        {showCompleted ? 'تمت المزامنة' : 'يتم المزامنة'}
+        {showError ? 'فشلت المزامنة' : showCompleted ? 'تمت المزامنة' : 'يتم المزامنة'}
       </Text>
       <View style={styles.syncIconContainer}>
-        {showCompleted ? (
+        {showError ? (
+          <Text style={styles.errorIcon}>✕</Text>
+        ) : showCompleted ? (
           <Check size={12} color="#FFFFFF" />
         ) : (
           <Animated.View style={[styles.spinningCircle, { transform: [{ rotate: spin }] }]}> 
@@ -79,6 +103,9 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.2,
     shadowRadius: 2,
+  },
+  syncIndicatorError: {
+    backgroundColor: '#EF4444',
   },
   syncText: {
     fontSize: 9,
@@ -109,5 +136,10 @@ const styles = StyleSheet.create({
     borderRightWidth: 1.5,
     borderBottomWidth: 0,
     borderLeftWidth: 0,
+  },
+  errorIcon: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: 'bold',
   },
 }); 

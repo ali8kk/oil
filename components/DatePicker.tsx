@@ -14,6 +14,7 @@ const { height: screenHeight } = Dimensions.get('window');
 const ITEM_HEIGHT = 50;
 const VISIBLE_ITEMS = 5;
 const PICKER_HEIGHT = ITEM_HEIGHT * VISIBLE_ITEMS;
+const SCROLL_THROTTLE = 100; // تأخير بين التحديثات
 
 interface NumberPickerProps {
   values: number[];
@@ -25,6 +26,7 @@ interface NumberPickerProps {
 function NumberPicker({ values, selectedValue, onValueChange, title }: NumberPickerProps) {
   const scrollViewRef = useRef<ScrollView>(null);
   const [isScrolling, setIsScrolling] = useState(false);
+  const lastUpdateTime = useRef(0);
 
   useEffect(() => {
     // تحديد الموضع الابتدائي للعنصر المحدد
@@ -46,12 +48,17 @@ function NumberPicker({ values, selectedValue, onValueChange, title }: NumberPic
     const selectedVal = values[index];
     
     if (selectedVal !== undefined && selectedVal !== selectedValue && !isScrolling) {
-      onValueChange(selectedVal);
+      const now = Date.now();
+      if (now - lastUpdateTime.current > SCROLL_THROTTLE) {
+        lastUpdateTime.current = now;
+        onValueChange(selectedVal);
+      }
     }
   };
 
   const handleScrollBegin = () => {
     setIsScrolling(true);
+    // إيقاف أي تحديثات أثناء التمرير
   };
 
   const handleScrollEnd = (event: any) => {
@@ -62,11 +69,13 @@ function NumberPicker({ values, selectedValue, onValueChange, title }: NumberPic
     
     if (selectedVal !== undefined) {
       onValueChange(selectedVal);
-      // محاذاة العنصر المحدد
-      scrollViewRef.current?.scrollTo({
-        y: index * ITEM_HEIGHT,
-        animated: true
-      });
+      // محاذاة العنصر المحدد مع تأخير صغير
+      setTimeout(() => {
+        scrollViewRef.current?.scrollTo({
+          y: index * ITEM_HEIGHT,
+          animated: true
+        });
+      }, 100);
     }
   };
 
@@ -88,12 +97,15 @@ function NumberPicker({ values, selectedValue, onValueChange, title }: NumberPic
           }}
           showsVerticalScrollIndicator={false}
           snapToInterval={ITEM_HEIGHT}
-          decelerationRate="fast"
+          decelerationRate="normal"
           onScroll={handleScroll}
           onScrollBeginDrag={handleScrollBegin}
           onScrollEndDrag={handleScrollEnd}
           onMomentumScrollEnd={handleScrollEnd}
-          scrollEventThrottle={16}
+          scrollEventThrottle={64}
+          bounces={false}
+          overScrollMode="never"
+          showsHorizontalScrollIndicator={false}
         >
           {values.map((value, index) => {
             const isSelected = value === selectedValue;

@@ -29,27 +29,38 @@ export default function SalarySlipsTable({ visible, onClose }: SalarySlipsTableP
   const handleDelete = (index: number) => {
     console.log('handleDelete called with index:', index);
     
-    // محاولة استخدام Alert أولاً
-    try {
-      Alert.alert(
-        'تأكيد الحذف',
-        'هل أنت متأكد من حذف هذه القصاصة؟',
-        [
-          { text: 'إلغاء', style: 'cancel' },
-          { 
-            text: 'حذف', 
-            style: 'destructive',
-            onPress: () => {
-              console.log('Delete confirmed, calling deleteSalarySlip with index:', index);
-              deleteSalarySlip(index);
+    // استخدام confirm للويب و Alert للموبايل
+    const isWeb = typeof window !== 'undefined' && window.document;
+    
+    if (isWeb) {
+      // للويب
+      const confirmed = window.confirm('هل أنت متأكد من حذف هذه القصاصة؟');
+      if (confirmed) {
+        console.log('Delete confirmed, calling deleteSalarySlip with index:', index);
+        deleteSalarySlip(index);
+      }
+    } else {
+      // للموبايل
+      try {
+        Alert.alert(
+          'تأكيد الحذف',
+          'هل أنت متأكد من حذف هذه القصاصة؟',
+          [
+            { text: 'إلغاء', style: 'cancel' },
+            { 
+              text: 'حذف', 
+              style: 'destructive',
+              onPress: () => {
+                console.log('Delete confirmed, calling deleteSalarySlip with index:', index);
+                deleteSalarySlip(index);
+              }
             }
-          }
-        ]
-      );
-    } catch (error) {
-      console.log('Alert failed, proceeding with direct delete:', error);
-      // إذا فشل Alert، نستمر بالحذف مباشرة
-      deleteSalarySlip(index);
+          ]
+        );
+      } catch (error) {
+        console.log('Alert failed, proceeding with direct delete:', error);
+        deleteSalarySlip(index);
+      }
     }
   };
 

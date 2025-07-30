@@ -49,7 +49,8 @@ export default function StatisticsScreen() {
     salarySlips, 
     incentiveSlips, 
     profitsSlips, 
-    userData
+    userData,
+    getCurrentFiscalYear
   } = useUserData();
   
   const [showSaveToast, setShowSaveToast] = useState(false);
@@ -265,6 +266,11 @@ export default function StatisticsScreen() {
       }
       yearlyData[slipYear] += bonus;
     });
+    
+    // للسنة المالية الحالية، استخدم القيمة من الشاشة الرئيسية
+    const currentFiscalYear = getCurrentFiscalYear();
+    const currentYearTotalRewards = parseFloat(userData.totalRewards?.replace(/,/g, '') || '0');
+    yearlyData[currentFiscalYear] = currentYearTotalRewards;
     
     return Object.entries(yearlyData)
       .map(([year, totalRewards]) => ({

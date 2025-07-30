@@ -287,14 +287,14 @@ export const databaseService = {
         sick_leave_balance: '',
         next_promotion_date: '',
         next_allowance_date: '',
-        total_rewards: '',
+        total_rewards: '0',
         start_date: '',
         total_incentive: '',
         total_salary: '',
         total_profits: '',
         last_rewards_reset_date: '',
         regular_leave_bonus: '3',
-        sick_leave_bonus: '3',
+        sick_leave_bonus: '2.5',
         grade: '10',
         stage: '1',
         courses_names: ['سلامة', 'حاسوب', 'اختصاص', 'إدارية'],
@@ -305,6 +305,42 @@ export const databaseService = {
     
     if (error) {
       console.error('Error creating user:', error);
+      return null;
+    }
+    
+    return data;
+  },
+
+  // إنشاء مستخدم جديد مع كلمة سر
+  async createUserWithPassword(computerId: string, password: string): Promise<User | null> {
+    const { data, error } = await supabase
+      .from('users')
+      .insert([{
+        computer_id: computerId,
+        password_hash: password, // في الإنتاج يجب تشفير كلمة السر
+        name: '',
+        vacation_balance: '',
+        sick_leave_balance: '',
+        next_promotion_date: '',
+        next_allowance_date: '',
+        total_rewards: '0',
+        start_date: '',
+        total_incentive: '',
+        total_salary: '',
+        total_profits: '',
+        last_rewards_reset_date: '',
+        regular_leave_bonus: '3',
+        sick_leave_bonus: '2.5',
+        grade: '10',
+        stage: '1',
+        courses_names: ['سلامة', 'حاسوب', 'اختصاص', 'إدارية'],
+        courses_completed: [false, false, false, false]
+      }])
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('Error creating user with password:', error);
       return null;
     }
     
@@ -322,50 +358,65 @@ export const databaseService = {
 
   // حفظ بيانات الحافز
   async saveIncentiveSlip(slip: Omit<IncentiveSlip, 'id' | 'created_at' | 'updated_at'> & { rating?: string }): Promise<IncentiveSlip | null> {
-    const { data, error } = await supabase
-      .from('incentive_slips')
-      .insert([{ ...slip }])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error saving incentive slip:', error);
+    try {
+      const { data, error } = await supabase
+        .from('incentive_slips')
+        .insert([{ ...slip }])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error saving incentive slip:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Exception in saveIncentiveSlip:', error);
       return null;
     }
-    
-    return data;
   },
 
   // حفظ بيانات الراتب
   async saveSalarySlip(slip: Omit<SalarySlip, 'id' | 'created_at' | 'updated_at'>): Promise<SalarySlip | null> {
-    const { data, error } = await supabase
-      .from('salary_slips')
-      .insert([slip])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error saving salary slip:', error);
+    try {
+      const { data, error } = await supabase
+        .from('salary_slips')
+        .insert([slip])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error saving salary slip:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Exception in saveSalarySlip:', error);
       return null;
     }
-    
-    return data;
   },
 
   // حفظ بيانات الأرباح
   async saveProfitsSlip(slip: Omit<ProfitsSlip, 'id' | 'created_at' | 'updated_at'>): Promise<ProfitsSlip | null> {
-    const { data, error } = await supabase
-      .from('profits_slips')
-      .insert([slip])
-      .select()
-      .single();
-    
-    if (error) {
-      console.error('Error saving profits slip:', error);
+    try {
+      const { data, error } = await supabase
+        .from('profits_slips')
+        .insert([slip])
+        .select()
+        .single();
+      
+      if (error) {
+        console.error('Error saving profits slip:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Exception in saveProfitsSlip:', error);
       return null;
     }
-    
-    return data;
   },
 
   // استرجاع بيانات الحافز
@@ -565,7 +616,7 @@ export const databaseService = {
       .update(data)
       .eq('id', id)
       .select()
-      .single();
+      .maybeSingle();
     if (error) {
       console.error('Error updating user:', error);
       return null;

@@ -92,7 +92,7 @@ export default function AppSettingsScreen() {
   
   const [formData, setFormData] = useState({
     regularLeaveBonus: userData.regularLeaveBonus || '3',
-    sickLeaveBonus: userData.sickLeaveBonus || '3',
+            sickLeaveBonus: userData.sickLeaveBonus || '2.5',
     coursesNames: userData.coursesNames || ['سلامة', 'حاسوب', 'اختصاص', 'إدارية']
   });
 
@@ -103,7 +103,7 @@ export default function AppSettingsScreen() {
       console.log('app-settings: userData changed, updating formData');
       setFormData({
         regularLeaveBonus: userData.regularLeaveBonus || '3',
-        sickLeaveBonus: userData.sickLeaveBonus || '3',
+        sickLeaveBonus: userData.sickLeaveBonus || '2.5',
         coursesNames: userData.coursesNames || ['سلامة', 'حاسوب', 'اختصاص', 'إدارية']
       });
     }

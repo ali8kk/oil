@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: 20,
     right: 20,
-    zIndex: 1000,
+    zIndex: 9999,
     elevation: 1000,
   },
   toast: {

@@ -22,6 +22,14 @@ interface EditFieldProps {
   rightIcon?: React.ReactNode;
 }
 
+interface ReadOnlyFieldProps {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  secureTextEntry?: boolean;
+  showNote?: boolean;
+}
+
 function EditField({ icon, label, value, onChangeText, placeholder, keyboardType = 'default', multiline = false, secureTextEntry = false, rightIcon }: EditFieldProps) {
   return (
     <View style={styles.fieldContainer}>
@@ -55,23 +63,44 @@ function EditField({ icon, label, value, onChangeText, placeholder, keyboardType
   );
 }
 
-export default function AccountInfoScreen() {
-  const { userData, updateUserData, triggerSaveToast, isSyncing, salarySlips, incentiveSlips } = useUserData();
+function ReadOnlyField({ icon, label, value, secureTextEntry = false, showNote = false }: ReadOnlyFieldProps) {
+  const [showPassword, setShowPassword] = useState(false);
   
-  // حساب إجمالي المكافآت من القصاصات الفعلية (نفس الطريقة المستخدمة في الواجهة الرئيسية)
-  const calculateTotalRewards = () => {
-    const totalBonusValue = salarySlips.reduce((total, slip) => {
-      return total + (parseFloat(slip.bonus?.replace(/,/g, '') || '0'));
-    }, 0);
-    
-    const totalRewardsValue = incentiveSlips.reduce((total, slip) => {
-      return total + (parseFloat(slip.rewards?.replace(/,/g, '') || '0'));
-    }, 0);
-    
-    return totalBonusValue + totalRewardsValue;
-  };
+  return (
+    <View style={styles.fieldContainer}>
+      <View style={styles.fieldHeader}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        <View style={styles.fieldIcon}>
+          {icon}
+        </View>
+      </View>
+      <View style={styles.readOnlyContainer}>
+        {secureTextEntry ? (
+          <View style={styles.readOnlyPasswordRow}>
+            <Text style={styles.readOnlyText}>
+              {showPassword ? value : '••••'}
+            </Text>
+            <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.eyeIconContainer}>
+              {showPassword ? <Eye size={22} color="#6B7280" /> : <EyeOff size={22} color="#6B7280" />}
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <Text style={styles.readOnlyText}>
+            {value}
+          </Text>
+        )}
+      </View>
+      {showNote && (
+        <Text style={styles.fieldNote}>لا يمكن تعديلها</Text>
+      )}
+    </View>
+  );
+}
 
-  const totalRewards = calculateTotalRewards();
+export default function AccountInfoScreen() {
+  const { userData, updateUserData, triggerSaveToast, isSyncing, salarySlips, incentiveSlips, updateCurrentYearRewards, updateBaseRewards } = useUserData();
+  
+
   
   const [formData, setFormData] = useState({
     name: userData.name,
@@ -80,7 +109,7 @@ export default function AccountInfoScreen() {
     sickLeaveBalance: userData.sickLeaveBalance,
     nextPromotionDate: userData.nextPromotionDate,
     nextAllowanceDate: userData.nextAllowanceDate,
-    totalRewards: totalRewards > 0 ? totalRewards.toString() : userData.totalRewards,
+    totalRewards: userData.totalRewards,
     startDate: userData.startDate,
     grade: userData.grade || '10',
     stage: userData.stage || '1',
@@ -89,7 +118,6 @@ export default function AccountInfoScreen() {
 
   const [hasChanges, setHasChanges] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
 
   // دالة لتنسيق الأرقام بالفواصل
   const formatNumber = (num: string) => {
@@ -101,7 +129,6 @@ export default function AccountInfoScreen() {
 
   // تحديث البيانات المحلية عند تغيير البيانات العامة
   useEffect(() => {
-    const updatedTotalRewards = calculateTotalRewards();
     setFormData({
       name: userData.name,
       computerId: userData.computerId,
@@ -109,15 +136,20 @@ export default function AccountInfoScreen() {
       sickLeaveBalance: userData.sickLeaveBalance,
       nextPromotionDate: userData.nextPromotionDate,
       nextAllowanceDate: userData.nextAllowanceDate,
-      totalRewards: updatedTotalRewards > 0 ? updatedTotalRewards.toString() : userData.totalRewards,
+      totalRewards: userData.totalRewards,
       startDate: userData.startDate,
       grade: userData.grade || '10',
       stage: userData.stage || '1',
       password: userData.password || ''
     });
-  }, [userData, salarySlips, incentiveSlips]);
+  }, [userData]);
 
   const handleFieldChange = (field: string, value: string) => {
+    // منع تحديث حقول للقراءة فقط
+    if (field === 'computerId' || field === 'password') {
+      return;
+    }
+    
     // تنسيق الأرقام للحقول المالية
     if (field === 'totalRewards') {
       // إزالة الفواصل أولاً ثم إعادة تنسيقها
@@ -125,13 +157,6 @@ export default function AccountInfoScreen() {
       if (/^\d*$/.test(cleanValue)) { // التأكد من أن القيمة أرقام فقط
         value = formatNumber(cleanValue);
       }
-    }
-    
-    // التحقق من كلمة السر
-    if (field === 'password') {
-      // التأكد من أن القيمة أرقام فقط وحد أقصى 4 أرقام
-      const numericValue = value.replace(/[^0-9]/g, '').slice(0, 4);
-      value = numericValue;
     }
     
     setFormData(prev => ({
@@ -144,21 +169,17 @@ export default function AccountInfoScreen() {
   const handleSave = async () => {
     if (isSaving) return; // منع الضغط المتكرر
     
-    // التحقق من صحة كلمة السر
-    if (formData.password && formData.password.length !== 4) {
-      Alert.alert(
-        'خطأ في كلمة السر',
-        'يجب أن تتكون كلمة السر من 4 أرقام بالضبط',
-        [{ text: 'حسناً', style: 'default' }]
-      );
-      return;
-    }
-    
     setIsSaving(true);
     
     try {
-      // تحديث البيانات في الـ Context
-      await updateUserData(formData);
+      // تحديث البيانات في الـ Context (باستثناء المكافآت)
+      const { totalRewards, ...otherData } = formData;
+      await updateUserData(otherData);
+      
+      // تحديث المكافآت الأساسية بشكل منفصل
+      if (totalRewards !== userData.totalRewards) {
+        await updateBaseRewards(totalRewards);
+      }
       
       // تفعيل إشعار النجاح
       triggerSaveToast();
@@ -212,12 +233,14 @@ export default function AccountInfoScreen() {
         style={styles.keyboardAvoidingView}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        enabled={true}
       >
         <ScrollView 
           style={styles.content} 
           showsVerticalScrollIndicator={false}
           contentContainerStyle={styles.scrollContent}
-          keyboardShouldPersistTaps="handled"
+          keyboardShouldPersistTaps="always"
+          nestedScrollEnabled={true}
         >
           <View style={styles.formContainer}>
             <Text style={styles.sectionTitle}>البيانات الأساسية</Text>
@@ -230,41 +253,20 @@ export default function AccountInfoScreen() {
               placeholder="أدخل الاسم الكامل"
             />
 
-            <EditField
+            <ReadOnlyField
               icon={<Hash size={20} color="#6B46C1" />}
               label="رقم الحاسبة"
               value={formData.computerId}
-              onChangeText={(text) => handleFieldChange('computerId', text)}
-              placeholder="أدخل رقم الحاسبة"
-              keyboardType="numeric"
+              showNote={true}
             />
 
-            <View style={styles.fieldContainer}>
-              <View style={styles.fieldHeader}>
-                <Text style={styles.fieldLabel}>كلمة السر لقاعدة البيانات</Text>
-                <View style={styles.fieldIcon}>
-                  <Lock size={20} color="#6B46C1" />
-                </View>
-              </View>
-              <View style={styles.passwordRow}>
-                <TouchableOpacity onPress={() => setShowPassword((prev) => !prev)} style={styles.eyeIconContainer}>
-                  {showPassword ? <Eye size={22} color="#6B7280" /> : <EyeOff size={22} color="#6B7280" />}
-                </TouchableOpacity>
-                <TextInput
-                  style={[styles.textInput, { flex: 1 }]}
-                  value={formData.password}
-                  onChangeText={(text) => {
-                    const numericValue = text.replace(/[^0-9]/g, '').slice(0, 4);
-                    handleFieldChange('password', numericValue);
-                  }}
-                  placeholder="أدخل 4 أرقام"
-                  keyboardType="numeric"
-                  secureTextEntry={!showPassword}
-                  textAlign="right"
-                  maxLength={4}
-                />
-              </View>
-            </View>
+            <ReadOnlyField
+              icon={<Lock size={20} color="#6B46C1" />}
+              label="كلمة السر لقاعدة البيانات"
+              value={formData.password}
+              secureTextEntry={true}
+              showNote={true}
+            />
 
             <DatePicker
               icon={<Calendar size={20} color="#3B82F6" />}
@@ -421,9 +423,11 @@ const styles = StyleSheet.create({
   content: {
     flex: 1,
     paddingHorizontal: 20,
+    paddingTop: 10,
   },
   scrollContent: {
     paddingBottom: 40,
+    flexGrow: 1,
   },
   formContainer: {
     marginTop: 20,
@@ -545,5 +549,33 @@ const styles = StyleSheet.create({
     right: 12,
     top: '50%',
     transform: [{ translateY: -10 }],
+  },
+  readOnlyContainer: {
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    minHeight: 44,
+    justifyContent: 'center',
+  },
+  readOnlyPasswordRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  readOnlyText: {
+    fontSize: 16,
+    fontFamily: 'Cairo-Regular',
+    color: '#6B7280',
+    textAlign: 'right',
+  },
+  fieldNote: {
+    fontSize: 12,
+    fontFamily: 'Cairo-Regular',
+    color: '#EF4444',
+    textAlign: 'right',
+    marginTop: 4,
   },
 });

@@ -97,7 +97,7 @@ export default function AppSettingsScreen() {
   
   const [formData, setFormData] = useState({
     regularLeaveBonus: userData.regularLeaveBonus || '3',
-    sickLeaveBonus: userData.sickLeaveBonus || '3',
+    sickLeaveBonus: userData.sickLeaveBonus || '2.5',
     coursesNames: userData.coursesNames || ['سلامة', 'حاسوب', 'اختصاص', 'إدارية']
   });
 
@@ -108,12 +108,22 @@ export default function AppSettingsScreen() {
   useEffect(() => {
     setFormData({
       regularLeaveBonus: userData.regularLeaveBonus || '3',
-      sickLeaveBonus: userData.sickLeaveBonus || '3',
+      sickLeaveBonus: userData.sickLeaveBonus || '2.5',
       coursesNames: userData.coursesNames || ['سلامة', 'حاسوب', 'اختصاص', 'إدارية']
     });
   }, [userData.regularLeaveBonus, userData.sickLeaveBonus, userData.coursesNames]);
 
   const handleFieldChange = (field: string, value: string) => {
+    if (field === 'sickLeaveBonus') {
+      // السماح بالأرقام العشرية الموجبة فقط
+      if (value === '' || (/^\d*\.?\d*$/.test(value) && parseFloat(value) >= 0)) {
+        setFormData(prev => ({
+          ...prev,
+          [field]: value
+        }));
+        setHasChanges(true);
+      }
+    } else {
     // التأكد من أن القيمة رقم صحيح موجب
     if (value === '' || (/^\d+$/.test(value) && parseInt(value) >= 0)) {
       setFormData(prev => ({
@@ -121,6 +131,7 @@ export default function AppSettingsScreen() {
         [field]: value
       }));
       setHasChanges(true);
+      }
     }
   };
 
