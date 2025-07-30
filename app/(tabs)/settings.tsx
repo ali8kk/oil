@@ -48,7 +48,8 @@ export default function SettingsScreen() {
     saveToDatabase,
     loginUser,
     registerUser,
-    setManualSyncing
+    setManualSyncing,
+    toastMessage
   } = useUserData();
   
   const [showAuthChoice, setShowAuthChoice] = useState(false);
@@ -57,6 +58,8 @@ export default function SettingsScreen() {
   const [showUnlinkWarning, setShowUnlinkWarning] = useState(false);
   const [showLinkWarning, setShowLinkWarning] = useState(false);
   const [showVersionInfo, setShowVersionInfo] = useState(false);
+  const [showApiCheckResult, setShowApiCheckResult] = useState(false);
+  const [apiCheckMessage, setApiCheckMessage] = useState('');
   
   // منطق الكشف عن الضغط المتكرر
   const [pressCount, setPressCount] = useState(0);
@@ -152,10 +155,12 @@ export default function SettingsScreen() {
         message += `\n💡 الحل: اضغط زر "مسح الجلسات" لحل مشكلة 401`;
       }
       
-      Alert.alert('فحص API و URL', message);
+      setApiCheckMessage(message);
+      setShowApiCheckResult(true);
     } catch (error) {
       console.error('Error checking API/URL:', error);
-      Alert.alert('خطأ', 'حدث خطأ أثناء فحص الإعدادات');
+      setApiCheckMessage('حدث خطأ أثناء فحص الإعدادات');
+      setShowApiCheckResult(true);
     }
   };
 
@@ -289,7 +294,7 @@ export default function SettingsScreen() {
         
         {/* معلومات النسخة */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>النسخة 1.0.4</Text>
+                          <Text style={styles.versionText}>النسخة 1.0.7</Text>
         </View>
               </ScrollView>
       </View>
@@ -482,11 +487,14 @@ export default function SettingsScreen() {
             
             <ScrollView style={styles.versionInfoScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.versionItem}>
-                <Text style={styles.versionNumber}>النسخة 1.0.4</Text>
-                <Text style={styles.versionDescription}>
-                  • إصلاح مشكلة حذف قصاصة الراتب أو الحافز بحيث لا يتم تصفير المكافآت الكلية بعد الحذف، بل يتم طرح قيمة القصاصة فقط مع الحفاظ على القيمة الأساسية من الإعدادات.{"\n"}
-                  • تحسين دقة حساب المكافآت الكلية بعد أي عملية حذف.
-                </Text>
+                <Text style={styles.versionNumber}>النسخة 1.0.7</Text>
+                                  <Text style={styles.versionDescription}>
+                    • إصلاح مشكلة عدم ظهور Toast عند تسجيل الدخول والتسجيل.{"\n"}
+                    • إضافة رسائل Toast مخصصة لعمليات تسجيل الدخول والتسجيل.{"\n"}
+                    • تحسين نظام Toast ليعمل في جميع الصفحات.{"\n"}
+                    • إصلاح زر فحص API و URL في نسخة الويب.{"\n"}
+                    • تحسين الشريط العلوي: رفع النصوص وتكبير الخط.
+                  </Text>
               </View>
               
               <View style={styles.versionItem}>
@@ -533,6 +541,41 @@ export default function SettingsScreen() {
               <TouchableOpacity
                 style={[styles.modalButton, styles.confirmButton]}
                 onPress={() => setShowVersionInfo(false)}
+              >
+                <Text style={styles.confirmButtonText}>إغلاق</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Modal نتيجة فحص API */}
+      <Modal
+        visible={showApiCheckResult}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowApiCheckResult(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>نتيجة فحص API و URL</Text>
+              <TouchableOpacity
+                onPress={() => setShowApiCheckResult(false)}
+                style={styles.closeButton}
+              >
+                <X size={20} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView style={styles.modalDescription} showsVerticalScrollIndicator={false}>
+              <Text style={styles.apiCheckText}>{apiCheckMessage}</Text>
+            </ScrollView>
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={() => setShowApiCheckResult(false)}
               >
                 <Text style={styles.confirmButtonText}>إغلاق</Text>
               </TouchableOpacity>
@@ -589,7 +632,7 @@ export default function SettingsScreen() {
 
       <Toast
         visible={showSaveToast}
-        message="تم حفظ التغييرات بنجاح! ✅"
+        message={toastMessage}
         type="success"
         duration={2000}
         onHide={() => {}}
@@ -930,5 +973,12 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     lineHeight: 20,
     textAlign: 'right',
+  },
+  apiCheckText: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Regular',
+    color: '#374151',
+    textAlign: 'right',
+    lineHeight: 20,
   },
 });

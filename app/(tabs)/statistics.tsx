@@ -50,10 +50,12 @@ export default function StatisticsScreen() {
     incentiveSlips, 
     profitsSlips, 
     userData,
-    getCurrentFiscalYear
+    getCurrentFiscalYear,
+    showSaveToast,
+    toastMessage
   } = useUserData();
   
-  const [showSaveToast, setShowSaveToast] = useState(false);
+
   
   // State for chart modals
   const [selectedChart, setSelectedChart] = useState<string | null>(null);
@@ -564,7 +566,7 @@ export default function StatisticsScreen() {
 
       <Toast
         visible={showSaveToast}
-        message="تم حفظ التغييرات بنجاح! ✅"
+        message={toastMessage}
         type="success"
         duration={2000}
         onHide={() => {}}

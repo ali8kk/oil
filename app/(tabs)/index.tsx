@@ -140,7 +140,7 @@ function CourseCheckbox({ courseName, isCompleted, onToggle }: CourseCheckboxPro
 }
 
 export default function PersonalInfoScreen() {
-  const { userData, calculateServiceDuration, calculateServiceDays, getCurrentFiscalYear, checkAndResetRewards, updateCourseCompletion, isLoading, showSaveToast, isSyncing, salarySlips, incentiveSlips, manualSyncing, isConnectedToDatabase, setManualSyncing } = useUserData();
+  const { userData, calculateServiceDuration, calculateServiceDays, getCurrentFiscalYear, checkAndResetRewards, updateCourseCompletion, isLoading, showSaveToast, toastMessage, isSyncing, salarySlips, incentiveSlips, manualSyncing, isConnectedToDatabase, setManualSyncing } = useUserData();
   const [isRewardsHidden, setIsRewardsHidden] = useState(true);
   const [refreshKey, setRefreshKey] = useState(0);
 
@@ -250,7 +250,7 @@ export default function PersonalInfoScreen() {
 
       <Toast
         visible={showSaveToast}
-        message="تم حفظ التغييرات بنجاح! ✅"
+        message={toastMessage}
         type="success"
         duration={2000}
         onHide={() => {}}

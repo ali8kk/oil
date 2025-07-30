@@ -49,14 +49,11 @@ export default function LoginModal({ visible, onClose, onLogin, onSwitchToRegist
       const result = await onLogin(computerId.trim(), password);
       
       if (result.success) {
-        Alert.alert('نجح تسجيل الدخول', result.message, [
-          { text: 'حسناً', onPress: () => {
-            setComputerId('');
-            setPassword('');
-            setErrorMessage('');
-            onClose();
-          }}
-        ]);
+        // إغلاق النافذة مباشرة بدون Alert
+        setComputerId('');
+        setPassword('');
+        setErrorMessage('');
+        onClose();
       } else {
         setErrorMessage(result.message);
       }

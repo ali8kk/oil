@@ -132,8 +132,13 @@ const styles = StyleSheet.create({
     bottom: 100,
     left: 20,
     right: 20,
-    zIndex: 9999,
+    zIndex: 99999,
     elevation: 1000,
+    // تحسين للويب
+    ...(typeof window !== 'undefined' && window.document && {
+      position: 'fixed',
+      zIndex: 999999,
+    }),
   },
   toast: {
     borderRadius: 12,

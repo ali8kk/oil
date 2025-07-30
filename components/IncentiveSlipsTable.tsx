@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Modal, Alert } from 'react-native';
-import { Pen, Trash2, Plus, X } from 'lucide-react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ScrollView, Modal } from 'react-native';
+import { X, Plus, Edit, Trash2 } from 'lucide-react-native';
 import { useUserData } from '../contexts/UserDataContext';
-import { IncentiveData } from './IncentiveModal';
 import IncentiveModal from './IncentiveModal';
 
 interface IncentiveSlipsTableProps {
@@ -14,57 +13,39 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
   const { incentiveSlips, updateIncentiveSlip, deleteIncentiveSlip, addIncentiveSlip } = useUserData();
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
   const handleEdit = (index: number) => {
     setEditingIndex(index);
   };
 
-  const handleSaveEdit = (data: IncentiveData) => {
-    if (editingIndex !== null) {
+  const handleSaveEdit = (data: any) => {
+    if (editingIndex !== null && editingIndex < incentiveSlips.length) {
       updateIncentiveSlip(editingIndex, data);
       setEditingIndex(null);
     }
   };
 
   const handleDelete = (index: number) => {
-    console.log('handleDelete called with index:', index);
-    
-    // استخدام confirm للويب و Alert للموبايل
-    const isWeb = typeof window !== 'undefined' && window.document;
-    
-    if (isWeb) {
-      // للويب
-      const confirmed = window.confirm('هل أنت متأكد من حذف هذه القصاصة؟');
-      if (confirmed) {
-        console.log('Delete confirmed, calling deleteIncentiveSlip with index:', index);
-        deleteIncentiveSlip(index);
-      }
-    } else {
-      // للموبايل
-      try {
-        Alert.alert(
-          'تأكيد الحذف',
-          'هل أنت متأكد من حذف هذه القصاصة؟',
-          [
-            { text: 'إلغاء', style: 'cancel' },
-            { 
-              text: 'حذف', 
-              style: 'destructive',
-              onPress: () => {
-                console.log('Delete confirmed, calling deleteIncentiveSlip with index:', index);
-                deleteIncentiveSlip(index);
-              }
-            }
-          ]
-        );
-      } catch (error) {
-        console.log('Alert failed, proceeding with direct delete:', error);
-        deleteIncentiveSlip(index);
-      }
+    setDeleteIndex(index);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (deleteIndex !== null) {
+      deleteIncentiveSlip(deleteIndex);
+      setShowDeleteModal(false);
+      setDeleteIndex(null);
     }
   };
 
-  const handleAddNew = (data: IncentiveData) => {
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteIndex(null);
+  };
+
+  const handleAddNew = (data: any) => {
     addIncentiveSlip(data);
     setShowAddModal(false);
   };
@@ -161,19 +142,18 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
                 contentContainerStyle={styles.scrollContent}
               >
                 <View style={styles.table}>
-                  {/* Table Header - الإجراءات أولاً ثم الشهر */}
+                  {/* Table Header */}
                   <View style={styles.tableHeader}>
                     <Text style={[styles.headerCell, styles.actionCell]}>الإجراءات</Text>
                     <Text style={[styles.headerCell, styles.monthCell]}>الشهر</Text>
                     <Text style={[styles.headerCell, styles.pointsCell]}>النقاط</Text>
                     <Text style={[styles.headerCell, styles.ratingCell]}>التقييم</Text>
-                    <Text style={[styles.headerCell, styles.leaveCell]}>الإجازات الاعتيادية</Text>
-                    <Text style={[styles.headerCell, styles.leaveCell]}>الإجازات المرضية</Text>
+                    <Text style={[styles.headerCell, styles.leaveCell]}>الإجازات</Text>
                     <Text style={[styles.headerCell, styles.rewardsCell]}>المكافآت</Text>
                     <Text style={[styles.headerCell, styles.incentiveCell]}>الحافز الكلي</Text>
                   </View>
 
-                  {/* Table Rows - الإجراءات أولاً ثم الشهر */}
+                  {/* Table Body */}
                   <ScrollView 
                     style={styles.tableBody}
                     showsVerticalScrollIndicator={true}
@@ -181,40 +161,27 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
                     {sortedIncentiveSlips.map((slip, index) => (
                       <View key={index} style={styles.tableRow}>
                         <View style={[styles.cell, styles.actionCell]}>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.actionButton}
-                            onPress={() => handleEdit(incentiveSlips.indexOf(slip))}
+                            onPress={() => handleEdit(index)}
                           >
-                            <Pen size={16} color="#3B82F6" />
+                            <Edit size={16} color="#3B82F6" />
                           </TouchableOpacity>
-                          <TouchableOpacity 
+                          <TouchableOpacity
                             style={styles.actionButton}
-                            onPress={() => handleDelete(incentiveSlips.indexOf(slip))}
+                            onPress={() => handleDelete(index)}
                           >
                             <Trash2 size={16} color="#EF4444" />
                           </TouchableOpacity>
                         </View>
-                        <Text style={[styles.cell, styles.monthCell]}>
-                          {formatMonthToNumbers(slip.month)}
-                        </Text>
-                        <Text style={[styles.cell, styles.pointsCell]}>
-                          {formatNumber(slip.points)}
-                        </Text>
-                        <Text style={[styles.cell, styles.ratingCell]}>
-                          {slip.rating}
-                        </Text>
+                        <Text style={[styles.cell, styles.monthCell]}>{slip.month}</Text>
+                        <Text style={[styles.cell, styles.pointsCell]}>{formatNumber(slip.points)}</Text>
+                        <Text style={[styles.cell, styles.ratingCell]}>{slip.rating}</Text>
                         <Text style={[styles.cell, styles.leaveCell]}>
-                          {slip.regularLeave || '0'}
+                          {slip.regularLeave || '0'} / {slip.sickLeave || '0'}
                         </Text>
-                        <Text style={[styles.cell, styles.leaveCell]}>
-                          {slip.sickLeave || '0'}
-                        </Text>
-                        <Text style={[styles.cell, styles.rewardsCell]}>
-                          {formatNumber(slip.rewards)}
-                        </Text>
-                        <Text style={[styles.cell, styles.incentiveCell]}>
-                          {formatNumber(slip.totalIncentive)}
-                        </Text>
+                        <Text style={[styles.cell, styles.rewardsCell]}>{formatNumber(slip.rewards)}</Text>
+                        <Text style={[styles.cell, styles.incentiveCell]}>{formatNumber(slip.totalIncentive)}</Text>
                       </View>
                     ))}
                   </ScrollView>
@@ -224,22 +191,63 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
           </View>
         </View>
 
-        {/* Edit Modal */}
-        {editingIndex !== null && (
-          <IncentiveModal
-            visible={true}
-            onClose={() => setEditingIndex(null)}
-            onSave={handleSaveEdit}
-            initialData={incentiveSlips[editingIndex]}
-          />
-        )}
-
-        {/* Add Modal */}
+        {/* Modal إضافة/تعديل قصاصة */}
         <IncentiveModal
-          visible={showAddModal}
-          onClose={() => setShowAddModal(false)}
-          onSave={handleAddNew}
+          visible={editingIndex !== null || showAddModal}
+          onClose={() => {
+            setEditingIndex(null);
+            setShowAddModal(false);
+          }}
+          onSave={(data: any) => {
+            if (editingIndex !== null && editingIndex < incentiveSlips.length) {
+              handleSaveEdit(data);
+            } else {
+              handleAddNew(data);
+            }
+          }}
+          initialData={editingIndex !== null && editingIndex < incentiveSlips.length ? incentiveSlips[editingIndex] : undefined}
         />
+
+        {/* Modal تأكيد الحذف */}
+        <Modal
+          visible={showDeleteModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={cancelDelete}
+        >
+          <View style={styles.deleteModalOverlay}>
+            <View style={styles.deleteModalContent}>
+              <View style={styles.deleteModalHeader}>
+                <Text style={styles.deleteModalTitle}>تأكيد الحذف</Text>
+                <TouchableOpacity
+                  onPress={cancelDelete}
+                  style={styles.deleteCloseButton}
+                >
+                  <X size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={styles.deleteModalBody}>
+                <Text style={styles.deleteModalMessage}>هل أنت متأكد من حذف هذه القصاصة؟</Text>
+              </View>
+              
+              <View style={styles.deleteModalButtons}>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.cancelDeleteButton]}
+                  onPress={cancelDelete}
+                >
+                  <Text style={styles.cancelDeleteButtonText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                  onPress={confirmDelete}
+                >
+                  <Text style={styles.confirmDeleteButtonText}>حذف</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -297,21 +305,27 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: 40,
   },
   emptyText: {
     fontSize: 18,
     fontFamily: 'Cairo-Regular',
     color: '#6B7280',
     marginBottom: 20,
+    textAlign: 'center',
   },
   addFirstButton: {
-    backgroundColor: '#6B46C1',
-    borderRadius: 12,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: '#6B46C1',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 12,
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
   },
   addFirstButtonText: {
     fontSize: 16,
@@ -330,7 +344,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E5E7EB',
-    minWidth: 800, // عرض أدنى للجدول لضمان ظهور جميع الأعمدة
+    minWidth: 800,
   },
   tableHeader: {
     flexDirection: 'row',
@@ -339,7 +353,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#5B21B6',
   },
   tableBody: {
-    flex: 1, // استخدام المساحة المتاحة بالكامل
+    flex: 1,
   },
   tableRow: {
     flexDirection: 'row',
@@ -370,7 +384,6 @@ const styles = StyleSheet.create({
     borderRightColor: '#F3F4F6',
     textAlignVertical: 'center',
   },
-  // تحديد عرض ثابت لكل عمود - الإجراءات أولاً
   actionCell: {
     width: 100,
     minWidth: 100,
@@ -413,5 +426,79 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+  // أنماط Modal التأكيد
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 320,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  deleteModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontFamily: 'Cairo-Bold',
+    color: '#374151',
+    textAlign: 'center',
+    flex: 1,
+  },
+  deleteCloseButton: {
+    padding: 4,
+  },
+  deleteModalBody: {
+    marginBottom: 20,
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    fontFamily: 'Cairo-Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelDeleteButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelDeleteButtonText: {
+    fontSize: 16,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#374151',
+  },
+  confirmDeleteButtonText: {
+    fontSize: 16,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#FFFFFF',
   },
 });

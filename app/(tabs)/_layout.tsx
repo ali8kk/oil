@@ -489,11 +489,11 @@ const styles = StyleSheet.create({
     height: 50,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Cairo-Bold',
     color: '#FFFFFF',
     textAlign: 'center',
-    marginTop: 16,
+    marginTop: 12,
     flex: 1,
     position: 'absolute',
     left: 0,

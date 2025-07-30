@@ -40,7 +40,8 @@ interface UserDataContextType {
   checkAndResetRewards: () => void;
   isLoading: boolean;
   showSaveToast: boolean;
-  triggerSaveToast: () => void;
+  toastMessage: string;
+  triggerSaveToast: (customMessage?: string) => void;
   // Sync loading state
   isSyncing: boolean;
   manualSyncing: boolean;
@@ -133,6 +134,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const [profitsSlips, setProfitsSlips] = useState<(ProfitsData & { id?: number })[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showSaveToast, setShowSaveToast] = useState(false);
+  const [toastMessage, setToastMessage] = useState('تم حفظ التغييرات بنجاح! ✅');
   const [isSyncing, setIsSyncing] = useState(false);
   const [manualSyncing, setManualSyncing] = useState(false);
   const [syncError, setSyncError] = useState(false);
@@ -1819,7 +1821,12 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const triggerSaveToast = () => {
+  const triggerSaveToast = (customMessage?: string) => {
+    if (customMessage) {
+      setToastMessage(customMessage);
+    } else {
+      setToastMessage('تم حفظ التغييرات بنجاح! ✅');
+    }
     setShowSaveToast(true);
     setTimeout(() => {
       setShowSaveToast(false);
@@ -3013,6 +3020,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await loadFromDatabase();
       
       console.log('Successfully logged in:', existingUser);
+      triggerSaveToast('تم تسجيل الدخول بنجاح! ✅');
       return { success: true, message: 'تم تسجيل الدخول بنجاح' };
     } catch (error) {
       console.log('Error logging in:', error);
@@ -3053,6 +3061,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         await saveToDatabase();
         
         console.log('Successfully created new account:', newUser);
+        triggerSaveToast('تم إنشاء الحساب بنجاح! ✅');
         return { success: true, message: 'تم إنشاء الحساب بنجاح' };
       } else {
         return { success: false, message: 'فشل في إنشاء الحساب' };
@@ -3091,8 +3100,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         getCurrentFiscalYear,
         checkAndResetRewards,
         isLoading,
-        showSaveToast,
-        triggerSaveToast,
+            showSaveToast,
+    toastMessage,
+    triggerSaveToast,
         isSyncing,
         manualSyncing,
         syncError,

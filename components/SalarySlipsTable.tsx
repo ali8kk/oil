@@ -14,6 +14,8 @@ export default function SalarySlipsTable({ visible, onClose }: SalarySlipsTableP
   const { salarySlips, updateSalarySlip, deleteSalarySlip, addSalarySlip } = useUserData();
   const [editingIndex, setEditingIndex] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
 
   const handleEdit = (index: number) => {
     setEditingIndex(index);
@@ -27,41 +29,21 @@ export default function SalarySlipsTable({ visible, onClose }: SalarySlipsTableP
   };
 
   const handleDelete = (index: number) => {
-    console.log('handleDelete called with index:', index);
-    
-    // استخدام confirm للويب و Alert للموبايل
-    const isWeb = typeof window !== 'undefined' && window.document;
-    
-    if (isWeb) {
-      // للويب
-      const confirmed = window.confirm('هل أنت متأكد من حذف هذه القصاصة؟');
-      if (confirmed) {
-        console.log('Delete confirmed, calling deleteSalarySlip with index:', index);
-        deleteSalarySlip(index);
-      }
-    } else {
-      // للموبايل
-      try {
-        Alert.alert(
-          'تأكيد الحذف',
-          'هل أنت متأكد من حذف هذه القصاصة؟',
-          [
-            { text: 'إلغاء', style: 'cancel' },
-            { 
-              text: 'حذف', 
-              style: 'destructive',
-              onPress: () => {
-                console.log('Delete confirmed, calling deleteSalarySlip with index:', index);
-                deleteSalarySlip(index);
-              }
-            }
-          ]
-        );
-      } catch (error) {
-        console.log('Alert failed, proceeding with direct delete:', error);
-        deleteSalarySlip(index);
-      }
+    setDeleteIndex(index);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    if (deleteIndex !== null) {
+      deleteSalarySlip(deleteIndex);
+      setShowDeleteModal(false);
+      setDeleteIndex(null);
     }
+  };
+
+  const cancelDelete = () => {
+    setShowDeleteModal(false);
+    setDeleteIndex(null);
   };
 
   const handleAddNew = (data: SalaryData) => {
@@ -190,6 +172,45 @@ export default function SalarySlipsTable({ visible, onClose }: SalarySlipsTableP
           onClose={() => setShowAddModal(false)}
           onSave={handleAddNew}
         />
+
+        {/* Modal تأكيد الحذف */}
+        <Modal
+          visible={showDeleteModal}
+          transparent={true}
+          animationType="fade"
+          onRequestClose={cancelDelete}
+        >
+          <View style={styles.deleteModalOverlay}>
+            <View style={styles.deleteModalContent}>
+              <View style={styles.deleteModalHeader}>
+                <Text style={styles.deleteModalTitle}>تأكيد الحذف</Text>
+                <TouchableOpacity
+                  onPress={cancelDelete}
+                  style={styles.deleteCloseButton}
+                >
+                  <X size={20} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
+              <View style={styles.deleteModalBody}>
+                <Text style={styles.deleteModalMessage}>هل أنت متأكد من حذف هذه القصاصة؟</Text>
+              </View>
+              <View style={styles.deleteModalButtons}>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.cancelDeleteButton]}
+                  onPress={cancelDelete}
+                >
+                  <Text style={styles.cancelDeleteButtonText}>إلغاء</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[styles.deleteModalButton, styles.confirmDeleteButton]}
+                  onPress={confirmDelete}
+                >
+                  <Text style={styles.confirmDeleteButtonText}>حذف</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          </View>
+        </Modal>
       </View>
     </Modal>
   );
@@ -354,5 +375,78 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 2,
+  },
+  deleteModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  deleteModalContent: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    width: '100%',
+    maxWidth: 320,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+  },
+  deleteModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontFamily: 'Cairo-Bold',
+    color: '#374151',
+    textAlign: 'center',
+    flex: 1,
+  },
+  deleteCloseButton: {
+    padding: 4,
+  },
+  deleteModalBody: {
+    marginBottom: 20,
+  },
+  deleteModalMessage: {
+    fontSize: 16,
+    fontFamily: 'Cairo-Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
+  deleteModalButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  deleteModalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  cancelDeleteButton: {
+    backgroundColor: '#F3F4F6',
+  },
+  confirmDeleteButton: {
+    backgroundColor: '#EF4444',
+  },
+  cancelDeleteButtonText: {
+    fontSize: 16,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#374151',
+  },
+  confirmDeleteButtonText: {
+    fontSize: 16,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#FFFFFF',
   },
 });

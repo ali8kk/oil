@@ -38,6 +38,7 @@ export default function SlipsScreen() {
   const { 
     isLoading, 
     showSaveToast, 
+    toastMessage,
     isSyncing
   } = useUserData();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -111,7 +112,7 @@ export default function SlipsScreen() {
 
       <Toast
         visible={showSaveToast}
-        message="تم حفظ التغييرات بنجاح! ✅"
+        message={toastMessage}
         type="success"
         duration={2000}
         onHide={() => {}}

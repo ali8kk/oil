@@ -82,19 +82,16 @@ export default function RegisterModal({ visible, onClose, onRegister, onSwitchTo
       const result = await onRegister(computerId.trim(), password);
       
       if (result.success) {
-        Alert.alert('تم إنشاء الحساب', result.message, [
-          { text: 'حسناً', onPress: () => {
-            setComputerId('');
-            setPassword('');
-            setConfirmPassword('');
-            setErrorMessage('');
-            onClose();
-            // فتح لوحة معلومات الحساب بعد إنشاء الحساب بنجاح
-            if (onNavigateToAccountInfo) {
-              onNavigateToAccountInfo();
-            }
-          }}
-        ]);
+        // إغلاق النافذة مباشرة بدون Alert
+        setComputerId('');
+        setPassword('');
+        setConfirmPassword('');
+        setErrorMessage('');
+        onClose();
+        // فتح لوحة معلومات الحساب بعد إنشاء الحساب بنجاح
+        if (onNavigateToAccountInfo) {
+          onNavigateToAccountInfo();
+        }
       } else {
         setErrorMessage(result.message);
       }
