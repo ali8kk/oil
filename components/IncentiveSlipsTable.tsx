@@ -151,6 +151,8 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
                     <Text style={[styles.headerCell, styles.leaveCell]}>الإجازات</Text>
                     <Text style={[styles.headerCell, styles.rewardsCell]}>المكافآت</Text>
                     <Text style={[styles.headerCell, styles.incentiveCell]}>الحافز الكلي</Text>
+                    <Text style={[styles.headerCell, styles.dateCell, { fontSize: 13 }]}>تاريخ الإضافة</Text>
+                    <Text style={[styles.headerCell, styles.dateCell, { fontSize: 13 }]}>تاريخ التعديل</Text>
                   </View>
 
                   {/* Table Body */}
@@ -159,7 +161,10 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
                     showsVerticalScrollIndicator={true}
                   >
                     {sortedIncentiveSlips.map((slip, index) => (
-                      <View key={index} style={styles.tableRow}>
+                      <View key={index} style={[
+                        styles.tableRow,
+                        index % 2 === 0 ? styles.evenRow : styles.oddRow
+                      ]}>
                         <View style={[styles.cell, styles.actionCell]}>
                           <TouchableOpacity
                             style={styles.actionButton}
@@ -182,6 +187,32 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
                         </Text>
                         <Text style={[styles.cell, styles.rewardsCell]}>{formatNumber(slip.rewards)}</Text>
                         <Text style={[styles.cell, styles.incentiveCell]}>{formatNumber(slip.totalIncentive)}</Text>
+                        <Text style={[styles.cell, styles.dateCell, { flexWrap: 'nowrap' }]} numberOfLines={1}>
+                          {slip.created_at ? (() => {
+                            const date = new Date(slip.created_at);
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+                            const timeHours = date.getHours() % 12 || 12;
+                            return `${day}/${month}/${year} ${timeHours}:${minutes} ${ampm}`;
+                          })() : '-'}
+                        </Text>
+                        <Text style={[styles.cell, styles.dateCell, { flexWrap: 'nowrap' }]} numberOfLines={1}>
+                          {slip.updated_at ? (() => {
+                            const date = new Date(slip.updated_at);
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+                            const timeHours = date.getHours() % 12 || 12;
+                            return `${day}/${month}/${year} ${timeHours}:${minutes} ${ampm}`;
+                          })() : '-'}
+                        </Text>
                       </View>
                     ))}
                   </ScrollView>
@@ -358,9 +389,14 @@ const styles = StyleSheet.create({
   tableRow: {
     flexDirection: 'row',
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    backgroundColor: '#FFFFFF',
+    borderBottomColor: '#E5E7EB',
     minHeight: 50,
+  },
+  evenRow: {
+    backgroundColor: '#FFFFFF',
+  },
+  oddRow: {
+    backgroundColor: '#F1F5F9',
   },
   headerCell: {
     fontSize: 14,
@@ -381,7 +417,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRightWidth: 1,
-    borderRightColor: '#F3F4F6',
+    borderRightColor: '#E5E7EB',
     textAlignVertical: 'center',
   },
   actionCell: {
@@ -416,6 +452,12 @@ const styles = StyleSheet.create({
     width: 120,
     minWidth: 120,
   },
+  dateCell: {
+    width: 160,
+    minWidth: 160,
+    fontSize: 11,
+  },
+
   actionButton: {
     padding: 8,
     marginHorizontal: 4,

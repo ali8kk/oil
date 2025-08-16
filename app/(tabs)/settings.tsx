@@ -294,7 +294,7 @@ export default function SettingsScreen() {
         
         {/* معلومات النسخة */}
         <View style={styles.versionContainer}>
-                          <Text style={styles.versionText}>النسخة 1.0.7</Text>
+                          <Text style={styles.versionText}>النسخة 1.1.0</Text>
         </View>
               </ScrollView>
       </View>
@@ -487,6 +487,41 @@ export default function SettingsScreen() {
             
             <ScrollView style={styles.versionInfoScroll} showsVerticalScrollIndicator={false}>
               <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.0</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشكلة عدم ظهور التواريخ في القصاصات الجديدة.{"\n"}
+                  • إضافة حقول "تاريخ الإضافة" و "تاريخ التعديل" تلقائياً.{"\n"}
+                  • تحسين تجربة المستخدم - ظهور التواريخ فوراً عند الإضافة.{"\n"}
+                  • تحديث "تاريخ التعديل" تلقائياً عند تعديل القصاصات.{"\n"}
+                  • إصلاح مشكلة الحاجة للخروج والعودة لرؤية التواريخ.{"\n"}
+                  • تحسين استقرار عرض البيانات في جميع الجداول.
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.9</Text>
+                <Text style={styles.versionDescription}>
+                  • إضافة ألوان متناوبة للصفوف (zebra striping).{"\n"}
+                  • الصفوف الزوجية: أبيض، الصفوف الفردية: رمادي فاتح.{"\n"}
+                  • تحسين وضوح الخطوط الفاصلة بين الأعمدة والصفوف.{"\n"}
+                  • تحسين قابلية القراءة في جميع الجداول.{"\n"}
+                  • مظهر أكثر تنظيماً واحترافية للجداول.
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.8</Text>
+                <Text style={styles.versionDescription}>
+                  • إضافة عمود "تاريخ الإضافة" في جميع جداول القصاصات.{"\n"}
+                  • إضافة عمود "تاريخ التعديل" في جميع جداول القصاصات.{"\n"}
+                  • تنسيق التواريخ: DD/MM/YYYY HH:MM AM/PM.{"\n"}
+                  • تحسين عرض الجداول مع عرض أكبر للأعمدة.{"\n"}
+                  • ضمان عرض التاريخ والوقت في سطر واحد.{"\n"}
+                  • تكبير عناوين الأعمدة لسهولة القراءة.
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
                 <Text style={styles.versionNumber}>النسخة 1.0.7</Text>
                                   <Text style={styles.versionDescription}>
                     • إصلاح مشكلة عدم ظهور Toast عند تسجيل الدخول والتسجيل.{"\n"}
@@ -495,6 +530,33 @@ export default function SettingsScreen() {
                     • إصلاح زر فحص API و URL في نسخة الويب.{"\n"}
                     • تحسين الشريط العلوي: رفع النصوص وتكبير الخط.
                   </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.6</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشكلة عدم ظهور Toast عند تسجيل الدخول والتسجيل.{"\n"}
+                  • إضافة رسائل Toast مخصصة لعمليات تسجيل الدخول والتسجيل.{"\n"}
+                  • تحسين نظام Toast ليعمل في جميع الصفحات.
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.5</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشكلة حذف القصاصات في نسخة الويب.{"\n"}
+                  • استبدال Alert.alert بـ Modal مخصص للويب.{"\n"}
+                  • تحسين تجربة المستخدم في نسخة الويب.
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.0.4</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشكلة عدم ظهور رسائل النجاح في الويب.{"\n"}
+                  • تحسين نظام Toast للعمل في جميع الصفحات.{"\n"}
+                  • إصلاح مشاكل التمرير في الإعدادات.
+                </Text>
               </View>
               
               <View style={styles.versionItem}>

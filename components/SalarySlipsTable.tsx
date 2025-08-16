@@ -115,6 +115,8 @@ export default function SalarySlipsTable({ visible, onClose }: SalarySlipsTableP
                     <Text style={[styles.headerCell, styles.monthCell]}>الشهر</Text>
                     <Text style={[styles.headerCell, styles.bonusCell, { color: '#FFFFFF' }]}>المكافئات</Text>
                     <Text style={[styles.headerCell, styles.salaryCell]}>الراتب الكلي</Text>
+                    <Text style={[styles.headerCell, styles.dateCell, { fontSize: 13 }]}>تاريخ الإضافة</Text>
+                    <Text style={[styles.headerCell, styles.dateCell, { fontSize: 13 }]}>تاريخ التعديل</Text>
                   </View>
 
                   {/* Table Rows */}
@@ -123,7 +125,10 @@ export default function SalarySlipsTable({ visible, onClose }: SalarySlipsTableP
                     showsVerticalScrollIndicator={true}
                   >
                     {sortedSalarySlips.map((slip, index) => (
-                      <View key={index} style={styles.tableRow}>
+                      <View key={index} style={[
+                        styles.tableRow,
+                        index % 2 === 0 ? styles.evenRow : styles.oddRow
+                      ]}>
                         <View style={[styles.cell, styles.actionCell]}>
                           <TouchableOpacity 
                             style={styles.actionButton}
@@ -146,6 +151,32 @@ export default function SalarySlipsTable({ visible, onClose }: SalarySlipsTableP
                         </Text>
                         <Text style={[styles.cell, styles.salaryCell]}>
                           {formatNumber(slip.totalSalary)}
+                        </Text>
+                        <Text style={[styles.cell, styles.dateCell, { flexWrap: 'nowrap' }]} numberOfLines={1}>
+                          {slip.created_at ? (() => {
+                            const date = new Date(slip.created_at);
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+                            const timeHours = date.getHours() % 12 || 12;
+                            return `${day}/${month}/${year} ${timeHours}:${minutes} ${ampm}`;
+                          })() : '-'}
+                        </Text>
+                        <Text style={[styles.cell, styles.dateCell, { flexWrap: 'nowrap' }]} numberOfLines={1}>
+                          {slip.updated_at ? (() => {
+                            const date = new Date(slip.updated_at);
+                            const year = date.getFullYear();
+                            const month = String(date.getMonth() + 1).padStart(2, '0');
+                            const day = String(date.getDate()).padStart(2, '0');
+                            const hours = String(date.getHours()).padStart(2, '0');
+                            const minutes = String(date.getMinutes()).padStart(2, '0');
+                            const ampm = date.getHours() >= 12 ? 'PM' : 'AM';
+                            const timeHours = date.getHours() % 12 || 12;
+                            return `${day}/${month}/${year} ${timeHours}:${minutes} ${ampm}`;
+                          })() : '-'}
                         </Text>
                       </View>
                     ))}
@@ -260,10 +291,7 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
   },
-  tableContainer: {
-    flex: 1,
-    padding: 16,
-  },
+
   emptyState: {
     flex: 1,
     justifyContent: 'center',
@@ -290,35 +318,7 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginRight: 8,
   },
-  horizontalScroll: {
-    flex: 1,
-  },
-  scrollContent: {
-    paddingRight: 20,
-  },
-  table: {
-    borderRadius: 12,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    minWidth: 400,
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#6B46C1',
-    borderBottomWidth: 2,
-    borderBottomColor: '#5B21B6',
-  },
-  tableBody: {
-    flex: 1, // استخدام المساحة المتاحة بالكامل
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-    backgroundColor: '#FFFFFF',
-    minHeight: 50,
-  },
+
   headerCell: {
     fontSize: 14,
     fontFamily: 'Cairo-Bold',
@@ -338,7 +338,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 12,
     borderRightWidth: 1,
-    borderRightColor: '#F3F4F6',
+    borderRightColor: '#E5E7EB',
     textAlignVertical: 'center',
   },
   actionCell: {
@@ -365,6 +365,50 @@ const styles = StyleSheet.create({
     color: '#374151',
     paddingHorizontal: 8,
   },
+  dateCell: {
+    width: 160,
+    minWidth: 160,
+    fontSize: 11,
+  },
+  horizontalScroll: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingRight: 20,
+  },
+  table: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    minWidth: 400,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#6B46C1',
+    borderBottomWidth: 2,
+    borderBottomColor: '#5B21B6',
+  },
+  tableBody: {
+    flex: 1,
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    minHeight: 50,
+  },
+  evenRow: {
+    backgroundColor: '#FFFFFF',
+  },
+  oddRow: {
+    backgroundColor: '#F1F5F9',
+  },
+  tableContainer: {
+    flex: 1,
+    padding: 16,
+  },
+
   actionButton: {
     padding: 8,
     marginHorizontal: 4,

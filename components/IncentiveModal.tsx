@@ -18,6 +18,8 @@ export interface IncentiveData {
   totalIncentive: string;
   month: string;
   id?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const ratingOptions = [

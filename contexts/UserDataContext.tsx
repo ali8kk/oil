@@ -368,7 +368,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         rewards: slip.bonus.toString(),
         sickLeave: slip.deductions.toString(),
         totalIncentive: slip.total_incentive.toString(),
-        rating: slip.rating || 'متوسط'
+        rating: slip.rating || 'متوسط',
+        created_at: slip.created_at,
+        updated_at: slip.updated_at
       }));
       setIncentiveSlips(incentiveSlipsData);
       await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(incentiveSlipsData));
@@ -380,7 +382,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         id: slip.id,
         month: slip.month,
         totalSalary: slip.total_salary.toString(),
-        bonus: slip.bonus?.toString() || '0'
+        bonus: slip.bonus?.toString() || '0',
+        created_at: slip.created_at,
+        updated_at: slip.updated_at
       }));
       setSalarySlips(salarySlipsData);
       await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(salarySlipsData));
@@ -394,7 +398,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         profitPeriod: slip.profit_period === 'first' ? '50% الأولى' : '50% الثانية',
         profitPoints: slip.basic_profits.toString(),
         totalProfits: slip.total_profits.toString(),
-        rating: slip.rating || 'متوسط'
+        rating: slip.rating || 'متوسط',
+        created_at: slip.created_at,
+        updated_at: slip.updated_at
       }));
       setProfitsSlips(profitsSlipsData);
       await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(profitsSlipsData));
@@ -547,8 +553,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     console.log('addIncentiveSlip called with:', slip);
     let databaseSuccess = true;
     try {
-      // إنشاء قصاصة محلية مؤقتة بدون ID
-      const tempSlip = { ...slip, id: undefined };
+      // إنشاء قصاصة محلية مؤقتة بدون ID مع التواريخ
+      const currentDate = new Date().toISOString();
+      const tempSlip = { 
+        ...slip, 
+        id: undefined,
+        created_at: currentDate,
+        updated_at: currentDate
+      };
       const updatedSlips = [...incentiveSlips, tempSlip];
       setIncentiveSlips(updatedSlips);
       await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(updatedSlips));
@@ -573,14 +585,26 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             setSyncError(true);
             setTimeout(() => setSyncError(false), 3000);
             
-            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
-            const localSlip = { ...slip, id: Date.now() };
+            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+            const currentDate = new Date().toISOString();
+            const localSlip = { 
+              ...slip, 
+              id: Date.now(),
+              created_at: currentDate,
+              updated_at: currentDate
+            };
             const localUpdatedSlips = [...incentiveSlips, localSlip];
             setIncentiveSlips(localUpdatedSlips);
             await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
           } else {
-            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
-            const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
+            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات مع التواريخ
+            const currentDate = new Date().toISOString();
+            const finalSlip = { 
+              ...slip, 
+              id: savedSlip?.id || Date.now(),
+              created_at: currentDate,
+              updated_at: currentDate
+            };
             const finalUpdatedSlips = [...incentiveSlips, finalSlip];
             setIncentiveSlips(finalUpdatedSlips);
             await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
@@ -592,16 +616,28 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
           databaseSuccess = false;
           setSyncError(true);
           setTimeout(() => setSyncError(false), 3000);
-          // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
-          const localSlip = { ...slip, id: Date.now() };
+          // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+          const currentDate = new Date().toISOString();
+          const localSlip = { 
+            ...slip, 
+            id: Date.now(),
+            created_at: currentDate,
+            updated_at: currentDate
+          };
           const localUpdatedSlips = [...incentiveSlips, localSlip];
           setIncentiveSlips(localUpdatedSlips);
           await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
           throw dbError; // أعد رمي الخطأ حتى لا يتم تعيين setManualSyncing(false)
         }
       } else {
-        // إذا لم يكن متصل بقاعدة البيانات، نعطي القصاصة ID محلي
-        const localSlip = { ...slip, id: Date.now() };
+        // إذا لم يكن متصل بقاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+        const currentDate = new Date().toISOString();
+        const localSlip = { 
+          ...slip, 
+          id: Date.now(),
+          created_at: currentDate,
+          updated_at: currentDate
+        };
         const localUpdatedSlips = [...incentiveSlips, localSlip];
         setIncentiveSlips(localUpdatedSlips);
         await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
@@ -765,7 +801,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       console.log('existingSlip:', existingSlip);
       let databaseSuccess = true;
       const updatedSlips = [...incentiveSlips];
-      updatedSlips[index] = { ...slip, id: updatedSlips[index]?.id || Date.now() };
+      const currentDate = new Date().toISOString();
+      updatedSlips[index] = { 
+        ...slip, 
+        id: existingSlip?.id || Date.now(),
+        created_at: existingSlip?.created_at || currentDate,
+        updated_at: currentDate
+      };
       setIncentiveSlips(updatedSlips);
       await AsyncStorage.setItem(INCENTIVE_SLIPS_KEY, JSON.stringify(updatedSlips));
       if (currentUserId && isConnectedToDatabase && isSupabaseConfigured() && updatedSlips[index]?.id) {
@@ -1123,8 +1165,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       setIsSyncing(true);
       let databaseSuccess = true;
       
-      // إنشاء قصاصة محلية مؤقتة بدون ID
-      const tempSlip = { ...slip, id: undefined };
+      // إنشاء قصاصة محلية مؤقتة بدون ID مع التواريخ
+      const currentDate = new Date().toISOString();
+      const tempSlip = { 
+        ...slip, 
+        id: undefined,
+        created_at: currentDate,
+        updated_at: currentDate
+      };
       const updatedSlips = [...salarySlips, tempSlip];
       setSalarySlips(updatedSlips);
       await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(updatedSlips));
@@ -1148,17 +1196,29 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             setSyncError(true);
             setTimeout(() => setSyncError(false), 3000);
             
-            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
-            const localSlip = { ...slip, id: Date.now() };
-            const localUpdatedSlips = [...salarySlips, localSlip];
-            setSalarySlips(localUpdatedSlips);
-            await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
+                      // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+          const currentDate = new Date().toISOString();
+          const localSlip = { 
+            ...slip, 
+            id: Date.now(),
+            created_at: currentDate,
+            updated_at: currentDate
+          };
+          const localUpdatedSlips = [...salarySlips, localSlip];
+          setSalarySlips(localUpdatedSlips);
+          await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
           } else {
-            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
-            const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
-            const finalUpdatedSlips = [...salarySlips, finalSlip];
-            setSalarySlips(finalUpdatedSlips);
-            await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
+                      // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات مع التواريخ
+          const currentDate = new Date().toISOString();
+          const finalSlip = { 
+            ...slip, 
+            id: savedSlip?.id || Date.now(),
+            created_at: currentDate,
+            updated_at: currentDate
+          };
+          const finalUpdatedSlips = [...salarySlips, finalSlip];
+          setSalarySlips(finalUpdatedSlips);
+          await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
             
             console.log('addSalarySlip: created slip with database id', savedSlip?.id);
           }
@@ -1168,15 +1228,27 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
           setSyncError(true);
           setTimeout(() => setSyncError(false), 3000);
           
-          // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
-          const localSlip = { ...slip, id: Date.now() };
+          // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+          const currentDate = new Date().toISOString();
+          const localSlip = { 
+            ...slip, 
+            id: Date.now(),
+            created_at: currentDate,
+            updated_at: currentDate
+          };
           const localUpdatedSlips = [...salarySlips, localSlip];
           setSalarySlips(localUpdatedSlips);
           await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
         }
       } else {
-        // إذا لم يكن متصل بقاعدة البيانات، نعطي القصاصة ID محلي
-        const localSlip = { ...slip, id: Date.now() };
+        // إذا لم يكن متصل بقاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+        const currentDate = new Date().toISOString();
+        const localSlip = { 
+          ...slip, 
+          id: Date.now(),
+          created_at: currentDate,
+          updated_at: currentDate
+        };
         const localUpdatedSlips = [...salarySlips, localSlip];
         setSalarySlips(localUpdatedSlips);
         await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
@@ -1210,7 +1282,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       
       const updatedSlips = [...salarySlips];
       const existingSlip = updatedSlips[index];
-      updatedSlips[index] = { ...slip, id: existingSlip?.id || Date.now() };
+      const currentDate = new Date().toISOString();
+      updatedSlips[index] = { 
+        ...slip, 
+        id: existingSlip?.id || Date.now(),
+        created_at: existingSlip?.created_at || currentDate,
+        updated_at: currentDate
+      };
       setSalarySlips(updatedSlips);
       await AsyncStorage.setItem(SALARY_SLIPS_KEY, JSON.stringify(updatedSlips));
       
@@ -1395,8 +1473,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       setIsSyncing(true);
       let databaseSuccess = true;
       
-      // إنشاء قصاصة محلية مؤقتة بدون ID
-      const tempSlip = { ...slip, id: undefined };
+      // إنشاء قصاصة محلية مؤقتة بدون ID مع التواريخ
+      const currentDate = new Date().toISOString();
+      const tempSlip = { 
+        ...slip, 
+        id: undefined,
+        created_at: currentDate,
+        updated_at: currentDate
+      };
       const updatedSlips = [...profitsSlips, tempSlip];
       setProfitsSlips(updatedSlips);
       await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(updatedSlips));
@@ -1421,14 +1505,26 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
             setSyncError(true);
             setTimeout(() => setSyncError(false), 3000);
             
-            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
-            const localSlip = { ...slip, id: Date.now() };
+            // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+            const currentDate = new Date().toISOString();
+            const localSlip = { 
+              ...slip, 
+              id: Date.now(),
+              created_at: currentDate,
+              updated_at: currentDate
+            };
             const localUpdatedSlips = [...profitsSlips, localSlip];
             setProfitsSlips(localUpdatedSlips);
             await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
           } else {
-            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات
-            const finalSlip = { ...slip, id: savedSlip?.id || Date.now() };
+            // تحديث القصاصة المحلية بالـ ID من قاعدة البيانات مع التواريخ
+            const currentDate = new Date().toISOString();
+            const finalSlip = { 
+              ...slip, 
+              id: savedSlip?.id || Date.now(),
+              created_at: currentDate,
+              updated_at: currentDate
+            };
             const finalUpdatedSlips = [...profitsSlips, finalSlip];
             setProfitsSlips(finalUpdatedSlips);
             await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(finalUpdatedSlips));
@@ -1441,15 +1537,27 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
           setSyncError(true);
           setTimeout(() => setSyncError(false), 3000);
           
-          // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي
-          const localSlip = { ...slip, id: Date.now() };
+          // إذا فشل حفظ في قاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+          const currentDate = new Date().toISOString();
+          const localSlip = { 
+            ...slip, 
+            id: Date.now(),
+            created_at: currentDate,
+            updated_at: currentDate
+          };
           const localUpdatedSlips = [...profitsSlips, localSlip];
           setProfitsSlips(localUpdatedSlips);
           await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
         }
       } else {
-        // إذا لم يكن متصل بقاعدة البيانات، نعطي القصاصة ID محلي
-        const localSlip = { ...slip, id: Date.now() };
+        // إذا لم يكن متصل بقاعدة البيانات، نعطي القصاصة ID محلي مع التواريخ
+        const currentDate = new Date().toISOString();
+        const localSlip = { 
+          ...slip, 
+          id: Date.now(),
+          created_at: currentDate,
+          updated_at: currentDate
+        };
         const localUpdatedSlips = [...profitsSlips, localSlip];
         setProfitsSlips(localUpdatedSlips);
         await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(localUpdatedSlips));
@@ -1481,7 +1589,13 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       
       const updatedSlips = [...profitsSlips];
       const existingSlip = updatedSlips[index];
-      updatedSlips[index] = { ...slip, id: existingSlip?.id || Date.now() };
+      const currentDate = new Date().toISOString();
+      updatedSlips[index] = { 
+        ...slip, 
+        id: existingSlip?.id || Date.now(),
+        created_at: existingSlip?.created_at || currentDate,
+        updated_at: currentDate
+      };
       setProfitsSlips(updatedSlips);
       await AsyncStorage.setItem(PROFITS_SLIPS_KEY, JSON.stringify(updatedSlips));
       

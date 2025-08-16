@@ -16,6 +16,8 @@ export interface ProfitsData {
   totalProfits: string;
   rating: string;
   id?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const ratingOptions = [

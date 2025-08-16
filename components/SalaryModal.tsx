@@ -14,6 +14,8 @@ export interface SalaryData {
   bonus: string; // حقل المكافأة الجديد
   month: string;
   id?: number;
+  created_at?: string;
+  updated_at?: string;
 }
 
 const monthOptions = [
