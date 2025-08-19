@@ -8,6 +8,7 @@ import IncentiveSlipsTable from '../../components/IncentiveSlipsTable';
 import SalarySlipsTable from '../../components/SalarySlipsTable';
 import ProfitsSlipsTable from '../../components/ProfitsSlipsTable';
 import InstallPWAButton from '../../components/InstallPWAButton';
+import AdBanner from '../../components/AdBanner';
 
 import { useUserData } from '../../contexts/UserDataContext';
 
@@ -108,6 +109,8 @@ export default function SlipsScreen() {
             onPress={() => handleSlipPress('الأرباح')}
           />
         </View>
+        {/* Ad banner at bottom of slips list */}
+        <AdBanner />
       </ScrollView>
 
       <Toast
