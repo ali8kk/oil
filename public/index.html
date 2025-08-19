@@ -33,6 +33,41 @@
         flex: 1;
       }
     </style>
+
+    <!-- Google tag (gtag.js) - GA4 Measurement ID -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-BFMDZ7E4C3"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);} 
+      gtag('js', new Date());
+
+      // Initial page view
+      gtag('config', 'G-BFMDZ7E4C3');
+
+      // SPA route changes tracking
+      (function() {
+        var measurementId = 'G-BFMDZ7E4C3';
+        var lastPath = location.pathname + location.search + location.hash;
+        function track() {
+          var path = location.pathname + location.search + location.hash;
+          if (path === lastPath) return;
+          lastPath = path;
+          gtag('config', measurementId, { page_path: path });
+        }
+        var pushState = history.pushState;
+        var replaceState = history.replaceState;
+        history.pushState = function() {
+          pushState.apply(this, arguments);
+          setTimeout(track, 0);
+        };
+        history.replaceState = function() {
+          replaceState.apply(this, arguments);
+          setTimeout(track, 0);
+        };
+        window.addEventListener('popstate', track);
+        window.addEventListener('hashchange', track);
+      })();
+    </script>
   </head>
 
   <body>

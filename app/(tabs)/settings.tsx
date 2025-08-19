@@ -294,7 +294,7 @@ export default function SettingsScreen() {
         
         {/* معلومات النسخة */}
         <View style={styles.versionContainer}>
-                          <Text style={styles.versionText}>النسخة 1.1.0</Text>
+                          <Text style={styles.versionText}>النسخة 1.1.1</Text>
         </View>
               </ScrollView>
       </View>
@@ -486,6 +486,14 @@ export default function SettingsScreen() {
             </View>
             
             <ScrollView style={styles.versionInfoScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.1</Text>
+                <Text style={styles.versionDescription}>
+                  • إضافة Google Analytics 4 وتتبع تغيّر المسارات (SPA).{"\n"}
+                  • إدراج وسم GA ومعرّف القياس G-BFMDZ7E4C3 في public/index.html.{"\n"}
+                  • تحسين تتبّع الزيارات دون تكرار الوسم.
+                </Text>
+              </View>
               <View style={styles.versionItem}>
                 <Text style={styles.versionNumber}>النسخة 1.1.0</Text>
                 <Text style={styles.versionDescription}>
