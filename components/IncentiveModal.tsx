@@ -26,6 +26,7 @@ const ratingOptions = [
   { label: 'متوسط', value: 'متوسط' },
   { label: 'جيد', value: 'جيد' },
   { label: 'جيد جداً', value: 'جيد جداً' },
+  { label: 'مكافئة خاصة', value: 'مكافئة خاصة' },
   { label: 'ممتاز', value: 'ممتاز' }
 ];
 

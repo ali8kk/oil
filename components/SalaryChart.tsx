@@ -36,8 +36,16 @@ export default function SalaryChart({ data }: SalaryChartProps) {
   const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
   const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
   
-  // المسافة بين الأعمدة
-  const spacing = plotWidth / Math.max(data.length, 1);
+  // تحديد عدد الأعمدة المرئية (عرض 5 أعمدة كحد أقصى)
+  const maxVisibleBars = 5;
+  const spacing = plotWidth / maxVisibleBars;
+  
+  // عرض جميع البيانات مع إمكانية التمرير
+  const totalChartWidth = Math.max(chartWidth, data.length * spacing + chartPadding.left + chartPadding.right);
+  
+  // تحديد البيانات المرئية (الأحدث أولاً)
+  const visibleData = data.slice(-maxVisibleBars);
+  const startIndex = Math.max(0, data.length - maxVisibleBars);
 
   // دالة لحساب ارتفاع العمود
   const getBarHeight = (value: number) => {
@@ -87,7 +95,7 @@ export default function SalaryChart({ data }: SalaryChartProps) {
         key={`grid-${i}`}
         x1={chartPadding.left}
         y1={y}
-        x2={chartPadding.left + plotWidth}
+                  x2={totalChartWidth - chartPadding.right}
         y2={y}
         stroke="#E5E7EB"
         strokeWidth={1}
@@ -117,7 +125,7 @@ export default function SalaryChart({ data }: SalaryChartProps) {
         showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
       >
-        <Svg width={Math.max(chartWidth, data.length * 60)} height={chartHeight}>
+        <Svg width={totalChartWidth} height={chartHeight}>
           {/* خطوط الشبكة */}
           {gridLines}
           
@@ -125,7 +133,7 @@ export default function SalaryChart({ data }: SalaryChartProps) {
           <Line
             x1={chartPadding.left}
             y1={chartPadding.top + plotHeight}
-            x2={chartPadding.left + plotWidth}
+            x2={totalChartWidth - chartPadding.right}
             y2={chartPadding.top + plotHeight}
             stroke="#374151"
             strokeWidth={2}
@@ -142,7 +150,7 @@ export default function SalaryChart({ data }: SalaryChartProps) {
           />
 
           {/* الأعمدة */}
-          {data.map((item, index) => {
+          {data.slice().reverse().map((item, index) => {
             const x = chartPadding.left + (index * spacing) + (spacing - barWidth) / 2;
             const barHeight = getBarHeight(item.salary);
             const y = getBarY(item.salary);
@@ -215,6 +223,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 8,
   },
+
   scrollContent: {
     paddingRight: 20,
   },

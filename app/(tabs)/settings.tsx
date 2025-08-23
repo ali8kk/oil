@@ -294,7 +294,7 @@ export default function SettingsScreen() {
         
         {/* معلومات النسخة */}
         <View style={styles.versionContainer}>
-                          <Text style={styles.versionText}>النسخة 1.1.1</Text>
+          <Text style={styles.versionText}>النسخة 1.1.5</Text>
         </View>
               </ScrollView>
       </View>
@@ -486,6 +486,51 @@ export default function SettingsScreen() {
             </View>
             
             <ScrollView style={styles.versionInfoScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.5</Text>
+                <Text style={styles.versionDescription}>
+                  • تحسين توازن أعمدة التقييم مع خطوط الشبكة في مخطط التقييمات الشهرية{"\n"}
+                  • إصلاح مشكلة عدم توازن ارتفاع الأعمدة مع مواقع خطوط الشبكة{"\n"}
+                  • تحسين مواقع النصوص فوق الأعمدة لتتوازن مع الأعمدة{"\n"}
+                  • رفع جميع التقييمات في المحور الصادي لتحسين المظهر العام{"\n"}
+                  • ضمان أن كل تقييم يقابل خط الشبكة الخاص به بدقة{"\n"}
+                  • إصلاح مشكلة إخفاء القيم الصفرية في مدة الخدمة (إظهار 0 سنة، 0 شهر، 0 يوم)
+                </Text>
+              </View>
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.4</Text>
+                <Text style={styles.versionDescription}>
+                  • إضافة تقييم جديد "مكافئة خاصة"{"\n"}
+                  • حذف تقييم "ضعيف" من جميع المخططات{"\n"}
+                  • تحسين مخطط التقييمات الشهرية مع ترتيب جديد{"\n"}
+                  • إصلاح مشكلة ظهور "مكافئة خاصة" في سطرين{"\n"}
+                  • تحسين عرض التقييمات في جدول قصاصات الحافز{"\n"}
+                  • إصلاح خطوط الشبكة المنقطة في مخطط التقييمات{"\n"}
+                  • تحسين ألوان وترتيب التقييمات في جميع المخططات
+                </Text>
+              </View>
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.3</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح مشكلة تعديل وحذف قصاصات الحافز{"\n"}
+                  • إصلاح عدم تطابق القصاصات عند التعديل والحذف{"\n"}
+                  • تحسين آلية التعامل مع القصاصات في الجداول{"\n"}
+                  • إصلاح مشكلة فتح نافذة تعديل قصاصة خاطئة{"\n"}
+                  • تحسين استقرار عمليات التعديل والحذف{"\n"}
+                  • إصلاح مشكلة عدم تطابق المصفوفات المرتبة مع الأصلية
+                </Text>
+              </View>
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.2</Text>
+                <Text style={styles.versionDescription}>
+                  • تحسين عرض المخططات في تبويب الإحصائيات{"\n"}
+                  • إصلاح تداخل الأعمدة في جميع المخططات{"\n"}
+                  • عكس ترتيب الأعمدة (الأقدم على اليسار، الأحدث على اليمين){"\n"}
+                  • إضافة إمكانية التمرير الأفقي لرؤية جميع البيانات{"\n"}
+                  • تحسين تجربة المستخدم في عرض البيانات التاريخية{"\n"}
+                  • إصلاح مشاكل العرض في المخططات المختلفة
+                </Text>
+              </View>
               <View style={styles.versionItem}>
                 <Text style={styles.versionNumber}>النسخة 1.1.1</Text>
                 <Text style={styles.versionDescription}>

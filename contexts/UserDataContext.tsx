@@ -2156,19 +2156,14 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     
     let result = '';
     
-    if (years > 0) {
-      result += `${years} سنة`;
-    }
+    // إظهار جميع القيم حتى لو كانت صفر
+    result += `${years} سنة`;
     
-    if (months > 0) {
-      if (result) result += '، ';
-      result += `${months} شهر`;
-    }
+    if (result) result += '، ';
+    result += `${months} شهر`;
     
-    if (days > 0) {
-      if (result) result += '، ';
-      result += `${days} يوم`;
-    }
+    if (result) result += '، ';
+    result += `${days} يوم`;
     
     const timeString = `${hours.toString().padStart(2, '0')}س:${minutes.toString().padStart(2, '0')}د:${seconds.toString().padStart(2, '0')}ث`;
     

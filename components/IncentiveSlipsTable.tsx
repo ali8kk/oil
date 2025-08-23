@@ -11,38 +11,52 @@ interface IncentiveSlipsTableProps {
 
 export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlipsTableProps) {
   const { incentiveSlips, updateIncentiveSlip, deleteIncentiveSlip, addIncentiveSlip } = useUserData();
-  const [editingIndex, setEditingIndex] = useState<number | null>(null);
+  const [editingSlip, setEditingSlip] = useState<any>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
-  const [deleteIndex, setDeleteIndex] = useState<number | null>(null);
+  const [deletingSlip, setDeletingSlip] = useState<any>(null);
 
-  const handleEdit = (index: number) => {
-    setEditingIndex(index);
+  const handleEdit = (slip: any) => {
+    setEditingSlip(slip);
   };
 
   const handleSaveEdit = (data: any) => {
-    if (editingIndex !== null && editingIndex < incentiveSlips.length) {
-      updateIncentiveSlip(editingIndex, data);
-      setEditingIndex(null);
+    if (editingSlip) {
+      // إيجاد index القصاصة في المصفوفة الأصلية
+      const originalIndex = incentiveSlips.findIndex(item => 
+        item.created_at === editingSlip.created_at && 
+        item.month === editingSlip.month
+      );
+      if (originalIndex !== -1) {
+        updateIncentiveSlip(originalIndex, data);
+      }
+      setEditingSlip(null);
     }
   };
 
-  const handleDelete = (index: number) => {
-    setDeleteIndex(index);
+  const handleDelete = (slip: any) => {
+    setDeletingSlip(slip);
     setShowDeleteModal(true);
   };
 
   const confirmDelete = () => {
-    if (deleteIndex !== null) {
-      deleteIncentiveSlip(deleteIndex);
+    if (deletingSlip) {
+      // إيجاد index القصاصة في المصفوفة الأصلية
+      const originalIndex = incentiveSlips.findIndex(item => 
+        item.created_at === deletingSlip.created_at && 
+        item.month === deletingSlip.month
+      );
+      if (originalIndex !== -1) {
+        deleteIncentiveSlip(originalIndex);
+      }
       setShowDeleteModal(false);
-      setDeleteIndex(null);
+      setDeletingSlip(null);
     }
   };
 
   const cancelDelete = () => {
     setShowDeleteModal(false);
-    setDeleteIndex(null);
+    setDeletingSlip(null);
   };
 
   const handleAddNew = (data: any) => {
@@ -168,20 +182,26 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
                         <View style={[styles.cell, styles.actionCell]}>
                           <TouchableOpacity
                             style={styles.actionButton}
-                            onPress={() => handleEdit(index)}
+                            onPress={() => handleEdit(slip)}
                           >
                             <Edit size={16} color="#3B82F6" />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={styles.actionButton}
-                            onPress={() => handleDelete(index)}
+                            onPress={() => handleDelete(slip)}
                           >
                             <Trash2 size={16} color="#EF4444" />
                           </TouchableOpacity>
                         </View>
                         <Text style={[styles.cell, styles.monthCell]}>{slip.month}</Text>
                         <Text style={[styles.cell, styles.pointsCell]}>{formatNumber(slip.points)}</Text>
-                        <Text style={[styles.cell, styles.ratingCell]}>{slip.rating}</Text>
+                        <Text style={[
+                          styles.cell, 
+                          styles.ratingCell,
+                          slip.rating === 'مكافئة خاصة' ? { fontSize: 11, lineHeight: 14 } : {}
+                        ]}>
+                          {slip.rating}
+                        </Text>
                         <Text style={[styles.cell, styles.leaveCell]}>
                           {slip.regularLeave || '0'} / {slip.sickLeave || '0'}
                         </Text>
@@ -224,19 +244,19 @@ export default function IncentiveSlipsTable({ visible, onClose }: IncentiveSlips
 
         {/* Modal إضافة/تعديل قصاصة */}
         <IncentiveModal
-          visible={editingIndex !== null || showAddModal}
+          visible={editingSlip !== null || showAddModal}
           onClose={() => {
-            setEditingIndex(null);
+            setEditingSlip(null);
             setShowAddModal(false);
           }}
           onSave={(data: any) => {
-            if (editingIndex !== null && editingIndex < incentiveSlips.length) {
+            if (editingSlip !== null) {
               handleSaveEdit(data);
             } else {
               handleAddNew(data);
             }
           }}
-          initialData={editingIndex !== null && editingIndex < incentiveSlips.length ? incentiveSlips[editingIndex] : undefined}
+          initialData={editingSlip || undefined}
         />
 
         {/* Modal تأكيد الحذف */}

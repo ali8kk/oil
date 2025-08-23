@@ -184,6 +184,9 @@ function CustomTabBar() {
             <Ionicons name="add" size={32} color="#fff" />
           </Animated.View>
         </TouchableOpacity>
+        
+        {/* كلمة "إضافة" تحت الزر */}
+        <Text style={styles.fabLabel}>إضافة</Text>
       </View>
 
       {/* Overlay */}
@@ -518,5 +521,16 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 32,
     backgroundColor: '#6B46C1',
     zIndex: 1,
+  },
+  fabLabel: {
+    position: 'absolute',
+    bottom: -15,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 12,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#9CA3AF',
+    marginTop: 4,
   },
 });

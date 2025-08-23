@@ -38,8 +38,16 @@ export default function YearlyIncomeChart({ data }: YearlyIncomeChartProps) {
   const plotWidth = chartWidth - chartPadding.left - chartPadding.right;
   const plotHeight = chartHeight - chartPadding.top - chartPadding.bottom;
   
-  // المسافة بين الأعمدة
-  const spacing = plotWidth / Math.max(data.length, 1);
+  // تحديد عدد الأعمدة المرئية (عرض 5 أعمدة كحد أقصى)
+  const maxVisibleBars = 5;
+  const spacing = plotWidth / maxVisibleBars;
+  
+  // عرض جميع البيانات مع إمكانية التمرير
+  const totalChartWidth = Math.max(chartWidth, data.length * spacing + chartPadding.left + chartPadding.right);
+  
+  // تحديد البيانات المرئية (الأحدث أولاً)
+  const visibleData = data.slice(-maxVisibleBars);
+  const startIndex = Math.max(0, data.length - maxVisibleBars);
 
   // دالة لحساب ارتفاع العمود
   const getBarHeight = (value: number) => {
@@ -116,7 +124,7 @@ export default function YearlyIncomeChart({ data }: YearlyIncomeChartProps) {
         showsHorizontalScrollIndicator={true}
         contentContainerStyle={styles.scrollContent}
       >
-        <Svg width={Math.max(chartWidth, data.length * 80)} height={chartHeight}>
+        <Svg width={totalChartWidth} height={chartHeight}>
           {/* خطوط الشبكة */}
           {gridLines}
           
@@ -124,7 +132,7 @@ export default function YearlyIncomeChart({ data }: YearlyIncomeChartProps) {
           <Line
             x1={chartPadding.left}
             y1={chartPadding.top + plotHeight}
-            x2={chartPadding.left + plotWidth}
+            x2={totalChartWidth - chartPadding.right}
             y2={chartPadding.top + plotHeight}
             stroke="#374151"
             strokeWidth={2}
@@ -141,7 +149,7 @@ export default function YearlyIncomeChart({ data }: YearlyIncomeChartProps) {
           />
 
           {/* الأعمدة */}
-          {data.map((item, index) => {
+          {data.slice().reverse().map((item, index) => {
             const x = chartPadding.left + (index * spacing) + (spacing - barWidth) / 2;
             const barHeight = getBarHeight(item.total);
             const y = getBarY(item.total);
