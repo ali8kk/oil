@@ -60,7 +60,7 @@ export default function YearlyIncomeChart({ data }: YearlyIncomeChartProps) {
     return chartPadding.top + plotHeight - getBarHeight(value);
   };
 
-  // تنسيق الأرقام
+  // تنسيق الأرقام للقيمة الإجمالية (3 أرقام بعد الفاصلة)
   const formatNumber = (num: number) => {
     const formatDecimal = (value: number, suffix: string) => {
       if (value % 1 === 0) {
@@ -68,6 +68,28 @@ export default function YearlyIncomeChart({ data }: YearlyIncomeChartProps) {
       }
       
       const formatted = value.toFixed(3);
+      const trimmed = parseFloat(formatted).toString();
+      return trimmed + suffix;
+    };
+    
+    if (num >= 1000000) {
+      const millions = num / 1000000;
+      return formatDecimal(millions, 'M');
+    } else if (num >= 1000) {
+      const thousands = num / 1000;
+      return formatDecimal(thousands, 'k');
+    }
+    return num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  };
+
+  // تنسيق الأرقام للقيم داخل العمود (رقم واحد بعد الفاصلة)
+  const formatNumberInBar = (num: number) => {
+    const formatDecimal = (value: number, suffix: string) => {
+      if (value % 1 === 0) {
+        return value.toString() + suffix;
+      }
+      
+      const formatted = value.toFixed(1);
       const trimmed = parseFloat(formatted).toString();
       return trimmed + suffix;
     };
@@ -214,6 +236,49 @@ export default function YearlyIncomeChart({ data }: YearlyIncomeChartProps) {
                 >
                   {formatNumber(item.total)}
                 </SvgText>
+
+                {/* قيم الأقسام داخل العمود */}
+                {/* قيمة الراتب */}
+                {barHeight * salaryRatio > 20 && (
+                  <SvgText
+                    x={x + barWidth / 2}
+                    y={y + (barHeight * (1 - salaryRatio)) + (barHeight * salaryRatio) / 2 + 3}
+                    fontSize="8"
+                    fill="#FFFFFF"
+                    textAnchor="middle"
+                    fontFamily="Cairo-Bold"
+                  >
+                    {formatNumberInBar(item.salary)}
+                  </SvgText>
+                )}
+                
+                {/* قيمة الحافز */}
+                {barHeight * incentiveRatio > 20 && (
+                  <SvgText
+                    x={x + barWidth / 2}
+                    y={y + (barHeight * (1 - salaryRatio - incentiveRatio)) + (barHeight * incentiveRatio) / 2 + 3}
+                    fontSize="8"
+                    fill="#FFFFFF"
+                    textAnchor="middle"
+                    fontFamily="Cairo-Bold"
+                  >
+                    {formatNumberInBar(item.incentive)}
+                  </SvgText>
+                )}
+                
+                {/* قيمة الأرباح */}
+                {barHeight * profitsRatio > 20 && (
+                  <SvgText
+                    x={x + barWidth / 2}
+                    y={y + (barHeight * profitsRatio) / 2 + 3}
+                    fontSize="8"
+                    fill="#FFFFFF"
+                    textAnchor="middle"
+                    fontFamily="Cairo-Bold"
+                  >
+                    {formatNumberInBar(item.profits)}
+                  </SvgText>
+                )}
               </React.Fragment>
             );
           })}

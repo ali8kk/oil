@@ -88,6 +88,11 @@ interface UserDataContextType {
   calculateRewardsForYear: (year: string) => number;
   updateCurrentYearRewards: () => Promise<void>;
   updateBaseRewards: (newBaseRewards: string) => Promise<void>;
+  // معلومات الحساب
+  accountCreationDate: string;
+  usersCount: number;
+  // دالة اختبار
+  testLoadAccountInfo: () => Promise<void>;
 }
 
 const defaultUserData: UserData = {
@@ -139,6 +144,8 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
   const [manualSyncing, setManualSyncing] = useState(false);
   const [syncError, setSyncError] = useState(false);
   const [hasError, setHasError] = useState(false);
+  const [accountCreationDate, setAccountCreationDate] = useState<string>('');
+  const [usersCount, setUsersCount] = useState<number>(0);
 
   // تحميل البيانات من التخزين المحلي عند بدء التطبيق
   useEffect(() => {
@@ -165,6 +172,34 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     }
   }, [currentUserId, isConnectedToDatabase]);
 
+  // تحديث معلومات الحساب عند تغيير حالة الاتصال
+  useEffect(() => {
+    console.log('useEffect - تحديث معلومات الحساب:', {
+      currentUserId,
+      isConnectedToDatabase,
+      computerId: userData.computerId
+    });
+    
+    // تحديث معلومات الحساب عند تسجيل الدخول
+    if (isConnectedToDatabase && currentUserId) {
+      console.log('useEffect - تحديث معلومات الحساب بعد تسجيل الدخول');
+      loadAccountInfo();
+    } else if (!isConnectedToDatabase && !currentUserId) {
+      console.log('useEffect - مسح معلومات الحساب بعد تسجيل الخروج');
+      setAccountCreationDate('');
+      setUsersCount(1);
+    }
+  }, [currentUserId, isConnectedToDatabase]);
+
+  // تحديث معلومات الحساب عند تغيير computerId
+  useEffect(() => {
+    console.log('useEffect - computerId changed:', userData.computerId);
+    if (isConnectedToDatabase && currentUserId && userData.computerId) {
+      console.log('useEffect - تحديث معلومات الحساب بسبب تغيير computerId');
+      loadAccountInfo();
+    }
+  }, [userData.computerId]);
+
   const loadAllData = async () => {
     try {
       console.log('Starting to load all data...');
@@ -175,6 +210,7 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       await loadIncentiveSlips();
       await loadSalarySlips();
       await loadProfitsSlips();
+      await loadAccountInfo();
       
       // تحميل القيمة الأساسية للمكافآت
       const baseRewardsString = await AsyncStorage.getItem(BASE_REWARDS_KEY);
@@ -297,6 +333,76 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       console.error('Error loading profits slips:', error);
       setProfitsSlips([]);
+    }
+  };
+
+  const loadAccountInfo = async () => {
+    try {
+      console.log('Loading account info...', { 
+        isSupabaseConfigured: isSupabaseConfigured(), 
+        currentUserId, 
+        computerId: userData.computerId,
+        isConnected: isConnectedToDatabase 
+      });
+      
+      // تحميل عدد المستخدمين أولاً (يعمل دائماً إذا كانت قاعدة البيانات متاحة)
+      if (isSupabaseConfigured()) {
+        const count = await databaseService.getUsersCount();
+        console.log('Users count loaded:', count);
+        setUsersCount(count);
+      } else {
+        console.log('Supabase not configured, setting users count to 1');
+        setUsersCount(1);
+      }
+
+      // تحميل تاريخ إنشاء الحساب فقط إذا كان المستخدم متصل
+      if (isSupabaseConfigured() && currentUserId && isConnectedToDatabase) {
+        console.log('Loading user creation date for userId:', currentUserId);
+        
+        // الحصول على معلومات المستخدم الحالي من قاعدة البيانات باستخدام userId
+        const userInfo = await databaseService.getCurrentUserInfo(currentUserId);
+        console.log('User info from database:', userInfo);
+        
+        if (userInfo && userInfo.created_at) {
+          // تحويل التاريخ إلى تنسيق DD/MM/YYYY
+          const date = new Date(userInfo.created_at);
+          const day = date.getDate().toString().padStart(2, '0');
+          const month = (date.getMonth() + 1).toString().padStart(2, '0');
+          const year = date.getFullYear();
+          const formattedDate = `${day}/${month}/${year}`;
+          
+          console.log('Formatted creation date:', formattedDate);
+          setAccountCreationDate(formattedDate);
+        } else {
+          console.log('No user info or created_at found, setting empty date');
+          setAccountCreationDate('');
+        }
+      } else {
+        console.log('Not connected or no userId, setting empty date');
+        setAccountCreationDate('');
+      }
+    } catch (error) {
+      console.error('Error loading account info:', error);
+      setAccountCreationDate('');
+      setUsersCount(1);
+    }
+  };
+
+  // دالة اختبار لتحميل معلومات الحساب
+  const testLoadAccountInfo = async () => {
+    console.log('=== TESTING ACCOUNT INFO LOADING ===');
+    console.log('Current state:', {
+      isSupabaseConfigured: isSupabaseConfigured(),
+      currentUserId,
+      isConnectedToDatabase,
+      computerId: userData.computerId
+    });
+    
+    try {
+      await loadAccountInfo();
+      console.log('Account info loaded successfully');
+    } catch (error) {
+      console.error('Error in test load account info:', error);
     }
   };
 
@@ -3128,6 +3234,10 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
       // تحميل البيانات من قاعدة البيانات
       await loadFromDatabase();
       
+      // تحديث معلومات الحساب مباشرة بعد تسجيل الدخول
+      console.log('Loading account info after login...');
+      await loadAccountInfo();
+      
       console.log('Successfully logged in:', existingUser);
       triggerSaveToast('تم تسجيل الدخول بنجاح! ✅');
       return { success: true, message: 'تم تسجيل الدخول بنجاح' };
@@ -3251,6 +3361,9 @@ export function UserDataProvider({ children }: { children: ReactNode }) {
         calculateRewardsForYear,
         updateCurrentYearRewards,
         updateBaseRewards,
+        accountCreationDate,
+        usersCount,
+        testLoadAccountInfo,
       }}
     >
       {children}

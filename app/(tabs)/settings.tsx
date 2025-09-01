@@ -49,7 +49,10 @@ export default function SettingsScreen() {
     loginUser,
     registerUser,
     setManualSyncing,
-    toastMessage
+    toastMessage,
+    accountCreationDate,
+    usersCount,
+    testLoadAccountInfo
   } = useUserData();
   
   const [showAuthChoice, setShowAuthChoice] = useState(false);
@@ -60,6 +63,7 @@ export default function SettingsScreen() {
   const [showVersionInfo, setShowVersionInfo] = useState(false);
   const [showApiCheckResult, setShowApiCheckResult] = useState(false);
   const [apiCheckMessage, setApiCheckMessage] = useState('');
+  const [forceRender, setForceRender] = useState(0);
   
   // منطق الكشف عن الضغط المتكرر
   const [pressCount, setPressCount] = useState(0);
@@ -292,9 +296,24 @@ export default function SettingsScreen() {
           />
         </View>
         
-        {/* معلومات النسخة */}
+        {/* معلومات الحساب والنسخة */}
         <View style={styles.versionContainer}>
-          <Text style={styles.versionText}>النسخة 1.1.5</Text>
+          {(() => {
+            console.log('Settings render - accountCreationDate:', accountCreationDate, 'usersCount:', usersCount, 'isConnected:', isConnectedToDatabase, 'currentUserId:', currentUserId, 'forceRender:', forceRender);
+            return null;
+          })()}
+          {isConnectedToDatabase && currentUserId && (
+            <View style={styles.accountInfoRow}>
+              <Text style={styles.accountInfoValue}>{accountCreationDate}</Text>
+              <Text style={styles.accountInfoLabel}>تاريخ إنشاء الحساب: </Text>
+            </View>
+          )}
+          <View style={styles.accountInfoRow}>
+            <Text style={styles.accountInfoValue}>{usersCount}</Text>
+            <Text style={styles.accountInfoLabel}>عدد المستخدمين: </Text>
+          </View>
+          <View style={styles.versionSpacing} />
+          <Text style={styles.versionText}>النسخة 1.1.8</Text>
         </View>
               </ScrollView>
       </View>
@@ -367,6 +386,32 @@ export default function SettingsScreen() {
               <View style={styles.toolsButtonContent}>
                 <Text style={styles.toolsButtonText}>معلومات النسخ</Text>
                 <Text style={styles.toolsButtonDescription}>عرض تاريخ التحديثات والإصلاحات</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* زر اختبار معلومات الحساب */}
+            <TouchableOpacity
+              style={[styles.toolsButton, { backgroundColor: '#059669', marginBottom: 12 }]}
+              onPress={testLoadAccountInfo}
+              activeOpacity={0.7}
+            >
+              <Settings size={24} color="#ffffff" />
+              <View style={styles.toolsButtonContent}>
+                <Text style={styles.toolsButtonText}>اختبار معلومات الحساب</Text>
+                <Text style={styles.toolsButtonDescription}>إعادة تحميل تاريخ إنشاء الحساب وعدد المستخدمين</Text>
+              </View>
+            </TouchableOpacity>
+
+            {/* زر إجبار إعادة الرسم */}
+            <TouchableOpacity
+              style={[styles.toolsButton, { backgroundColor: '#DC2626', marginBottom: 12 }]}
+              onPress={() => setForceRender(prev => prev + 1)}
+              activeOpacity={0.7}
+            >
+              <Settings size={24} color="#ffffff" />
+              <View style={styles.toolsButtonContent}>
+                <Text style={styles.toolsButtonText}>إجبار إعادة الرسم</Text>
+                <Text style={styles.toolsButtonDescription}>إعادة رسم الواجهة لضمان عرض البيانات</Text>
               </View>
             </TouchableOpacity>
           </View>
@@ -486,6 +531,38 @@ export default function SettingsScreen() {
             </View>
             
             <ScrollView style={styles.versionInfoScroll} showsVerticalScrollIndicator={false}>
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.8</Text>
+                <Text style={styles.versionDescription}>
+                  • إصلاح نهائي لمشكلة عدم ظهور تاريخ إنشاء الحساب{'\n'}
+                  • تحسين آلية تحديث معلومات الحساب عند تسجيل الدخول{'\n'}
+                  • إضافة useEffect إضافي لضمان تحديث البيانات في الواجهة{'\n'}
+                  • تحسين استقرار عرض تاريخ إنشاء الحساب وعدد المستخدمين{'\n'}
+                  • إصلاح مشكلة اختفاء التاريخ بعد ظهوره لثانية واحدة
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.7</Text>
+                <Text style={styles.versionDescription}>
+                  • إضافة معلومات الحساب في تبويب الإعدادات{'\n'}
+                  • عرض تاريخ إنشاء الحساب من قاعدة البيانات{'\n'}
+                  • عرض عدد المستخدمين المسجلين في النظام{'\n'}
+                  • تحسين تنسيق التاريخ إلى الإنجليزية{'\n'}
+                  • تحسين التصميم والألوان لمعلومات الحساب
+                </Text>
+              </View>
+              
+              <View style={styles.versionItem}>
+                <Text style={styles.versionNumber}>النسخة 1.1.6</Text>
+                <Text style={styles.versionDescription}>
+                  • تحسين مخطط الدخل السنوي في تبويب الإحصائيات{'\n'}
+                  • إضافة قيم الراتب والحافز والأرباح داخل أعمدة المخطط{'\n'}
+                  • تنسيق الأرقام: رقم واحد بعد الفاصلة داخل الأعمدة، 3 أرقام فوق العمود{'\n'}
+                  • تحسين وضوح وعرض البيانات في المخططات
+                </Text>
+              </View>
+              
               <View style={styles.versionItem}>
                 <Text style={styles.versionNumber}>النسخة 1.1.5</Text>
                 <Text style={styles.versionDescription}>
@@ -1058,6 +1135,29 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
     paddingVertical: 20,
     paddingHorizontal: 16,
+  },
+  accountInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    marginBottom: 4,
+    marginTop: 8,
+  },
+  accountInfoLabel: {
+    fontSize: 14,
+    fontFamily: 'Cairo-SemiBold',
+    color: '#000000',
+    textAlign: 'right',
+  },
+  accountInfoValue: {
+    fontSize: 14,
+    fontFamily: 'Cairo-Bold',
+    color: '#7C3AED',
+    textAlign: 'right',
+    marginRight: 4,
+  },
+  versionSpacing: {
+    height: 12,
   },
   versionText: {
     fontSize: 14,

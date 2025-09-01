@@ -467,6 +467,46 @@ export const databaseService = {
     return data || [];
   },
 
+  // الحصول على عدد المستخدمين
+  async getUsersCount(): Promise<number> {
+    try {
+      const { count, error } = await supabase
+        .from('users')
+        .select('*', { count: 'exact', head: true });
+      
+      if (error) {
+        console.error('Error getting users count:', error);
+        return 0;
+      }
+      
+      return count || 0;
+    } catch (error) {
+      console.error('Network error getting users count:', error);
+      return 0;
+    }
+  },
+
+  // الحصول على معلومات المستخدم الحالي
+  async getCurrentUserInfo(userId: string): Promise<User | null> {
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
+      
+      if (error) {
+        console.error('Error getting current user info:', error);
+        return null;
+      }
+      
+      return data;
+    } catch (error) {
+      console.error('Network error getting current user info:', error);
+      return null;
+    }
+  },
+
   // حذف بيانات المستخدم
   async deleteUserData(userId: number): Promise<boolean> {
     // حذف بيانات الحافز
